@@ -58,20 +58,23 @@ class MusicDataHandler(
     }
     
     fun refreshGoogleDriveMusic() {
+        Log.d("MusicDataHandler", "*** refreshGoogleDriveMusic() called ***")
         lifecycleScope.launch {
             try {
                 // Load local music first
                 allArtists.clear()
                 val localArtists = musicRepository.loadMusicData()
                 allArtists.addAll(localArtists)
-                
+
+                Log.d("MusicDataHandler", "Loaded ${localArtists.size} local artists")
+
                 // Notify UI with local music first
                 fragmentNotifier.notifyDataLoaded()
-                
+
                 // Start the metadata loading service
-                Log.d("MusicDataHandler", "Starting metadata loading service")
+                Log.d("MusicDataHandler", "*** Starting metadata loading service ***")
                 MetadataLoadingService.startService(context)
-                
+
             } catch (e: Exception) {
                 Log.e("MusicDataHandler", "Error starting Google Drive music loading", e)
                 callback?.onMusicLoadError("Error starting Google Drive music loading: ${e.message}")
@@ -80,40 +83,44 @@ class MusicDataHandler(
     }
     
     fun updateWithGoogleDriveData() {
-        try {
-            val googleDriveArtists = googleDriveService.getLatestGoogleDriveArtists()
-            Log.d("MusicDataHandler", "Got latest cached data: ${googleDriveArtists.size} artists")
-            
-            if (googleDriveArtists.isNotEmpty()) {
-                // Remove existing Google Drive tracks (identified by googleDriveFileId)
-                val localOnlyArtists = allArtists.map { artist ->
-                    artist.copy(
-                        albums = artist.albums.map { album ->
-                            album.copy(
-                                tracks = album.tracks.filter { track -> 
-                                    track.googleDriveFileId == null 
-                                }.toMutableList()
-                            )
-                        }.filter { it.tracks.isNotEmpty() }.toMutableList()
-                    )
-                }.filter { it.albums.isNotEmpty() }.toMutableList()
-                
-                // Merge local and updated Google Drive music
-                allArtists.clear()
-                allArtists.addAll(localOnlyArtists)
-                allArtists.addAll(googleDriveArtists)
-                
-                // Notify fragments about data update
-                fragmentNotifier.notifyDataLoaded()
-                callback?.onGoogleDriveMusicLoaded(googleDriveArtists)
-                
-                val totalTracks = allArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
-                val googleDriveTracks = googleDriveArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
-                Log.d("MusicDataHandler", "Updated music library: ${allArtists.size} artists, $totalTracks tracks ($googleDriveTracks from Google Drive)")
+        lifecycleScope.launch {
+            try {
+                val googleDriveArtists = googleDriveService.getLatestGoogleDriveArtists()
+                Log.d("MusicDataHandler", "Got latest cached data: ${googleDriveArtists.size} artists")
+
+                if (googleDriveArtists.isNotEmpty()) {
+                    // Remove existing Google Drive tracks (identified by googleDriveFileId)
+                    val localOnlyArtists = allArtists.map { artist ->
+                        artist.copy(
+                            albums = artist.albums.map { album ->
+                                album.copy(
+                                    tracks = album.tracks.filter { track ->
+                                        track.googleDriveFileId == null
+                                    }.toMutableList()
+                                )
+                            }.filter { it.tracks.isNotEmpty() }.toMutableList()
+                        )
+                    }.filter { it.albums.isNotEmpty() }.toMutableList()
+
+                    // Merge local and updated Google Drive music
+                    allArtists.clear()
+                    allArtists.addAll(localOnlyArtists)
+                    allArtists.addAll(googleDriveArtists)
+
+                    // Notify fragments about data update on main thread
+                    fragmentNotifier.notifyDataLoaded()
+                    callback?.onGoogleDriveMusicLoaded(googleDriveArtists)
+
+                    val totalTracks = allArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
+                    val googleDriveTracks = googleDriveArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
+                    Log.d("MusicDataHandler", "Updated music library: ${allArtists.size} artists, $totalTracks tracks ($googleDriveTracks from Google Drive)")
+                } else {
+                    Log.d("MusicDataHandler", "No Google Drive data available yet")
+                }
+            } catch (e: Exception) {
+                Log.e("MusicDataHandler", "Error updating with latest Google Drive data", e)
+                callback?.onMusicLoadError("Error updating Google Drive data: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e("MusicDataHandler", "Error updating with latest Google Drive data", e)
-            callback?.onMusicLoadError("Error updating Google Drive data: ${e.message}")
         }
     }
 }

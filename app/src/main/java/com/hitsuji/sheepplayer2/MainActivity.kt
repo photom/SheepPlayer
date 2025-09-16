@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
@@ -72,14 +73,17 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Initialize dependencies first, before view inflation
+        initializeDependencies()
+        initializeHandlers()
+        setupCallbacks()
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         supportActionBar?.show()
         setupNavigation()
-        initializeDependencies()
-        initializeHandlers()
-        setupCallbacks()
 
         permissionHandler.checkAndRequestPermission()
         googleDriveAuthHandler.checkExistingSignIn()
@@ -325,12 +329,18 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
     }
 
     private fun notifyFragmentsDataLoaded() {
+        Log.d("MainActivity", "*** notifyFragmentsDataLoaded() called ***")
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main)
+        var fragmentsNotified = 0
         navHostFragment?.childFragmentManager?.fragments?.forEach { fragment ->
+            Log.d("MainActivity", "Found fragment: ${fragment::class.simpleName}")
             if (fragment is com.hitsuji.sheepplayer2.ui.tracks.TracksFragment) {
+                Log.d("MainActivity", "*** Calling onMusicDataLoaded() on TracksFragment ***")
                 fragment.onMusicDataLoaded()
+                fragmentsNotified++
             }
         }
+        Log.d("MainActivity", "*** Notified $fragmentsNotified TracksFragment(s) ***")
     }
 
     private fun notifyPlayingFragmentStateChanged() {

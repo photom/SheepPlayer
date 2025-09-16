@@ -130,8 +130,11 @@ class TracksFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        Log.d("TracksFragment", "*** onResume() called, needsDataRefresh: $needsDataRefresh ***")
+
         // Reload tracks when returning to this fragment in case new music was loaded
         if (needsDataRefresh || !::treeAdapter.isInitialized) {
+            Log.d("TracksFragment", "*** Refreshing tracks data on resume ***")
             loadTracksFromMainActivity()
             needsDataRefresh = false
         }
@@ -140,20 +143,28 @@ class TracksFragment : Fragment() {
     fun onMusicDataLoaded() {
         Log.d("TracksFragment", "=== onMusicDataLoaded() called ===")
         Log.d("TracksFragment", "isResumed: $isResumed, view: $view")
-        
-        if (isResumed && view != null) {
-            // Fragment is visible, update immediately
-            Log.d("TracksFragment", "*** Fragment visible - calling loadTracksFromMainActivity() ***")
-            loadTracksFromMainActivity()
-            // Force notify adapter of data change
-            if (::treeAdapter.isInitialized) {
-                Log.d("TracksFragment", "*** Forcing adapter data refresh ***")
-                treeAdapter.notifyDataSetChanged()
+
+        // Always update regardless of visibility state to ensure latest data
+        Log.d("TracksFragment", "*** Updating tracks data ***")
+
+        val mainActivity = activity as? MainActivity
+        if (mainActivity != null) {
+            Log.d("TracksFragment", "*** MainActivity found, artists count: ${mainActivity.allArtists.size} ***")
+
+            // Ensure UI update happens on main thread
+            requireActivity().runOnUiThread {
+                if (isResumed && view != null) {
+                    // Fragment is visible, update immediately
+                    Log.d("TracksFragment", "*** Fragment visible - calling loadTracksFromMainActivity() ***")
+                    loadTracksFromMainActivity()
+                } else {
+                    // Fragment is not visible, mark for update when it becomes visible
+                    Log.d("TracksFragment", "*** Fragment not visible - setting needsDataRefresh = true ***")
+                    needsDataRefresh = true
+                }
             }
         } else {
-            // Fragment is not visible, mark for update when it becomes visible
-            Log.d("TracksFragment", "*** Fragment not visible - setting needsDataRefresh = true ***")
-            needsDataRefresh = true
+            Log.w("TracksFragment", "*** MainActivity not found! ***")
         }
     }
 

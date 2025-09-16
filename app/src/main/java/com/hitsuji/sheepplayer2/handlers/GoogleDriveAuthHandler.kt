@@ -54,8 +54,15 @@ class GoogleDriveAuthHandler(
         return try {
             val isSignedIn = googleDriveService.isSignedIn()
             val currentAccount = googleDriveService.getCurrentAccount()
-            
+
             Log.d("GoogleDriveAuth", "Checking sign-in: isSignedIn=$isSignedIn, account=${currentAccount?.email}")
+
+            if (isSignedIn) {
+                // Trigger sign-in success callback to start Google Drive refresh
+                Log.d("GoogleDriveAuth", "Already signed in - triggering onSignInSuccess callback")
+                callback?.onSignInSuccess()
+            }
+
             isSignedIn
         } catch (e: Exception) {
             Log.w("GoogleDriveAuth", "Error checking sign-in status", e)
