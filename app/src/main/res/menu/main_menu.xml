@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_google_drive_login"
+        android:title="Login to Google Drive"
+        android:icon="@android:drawable/ic_menu_upload"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_google_drive_logout"
+        android:title="Logout from Google Drive"
+        android:icon="@android:drawable/ic_menu_close_clear_cancel"
+        app:showAsAction="never"
+        android:visible="false" />
+
+    <item
+        android:id="@+id/action_refresh_google_drive"
+        android:title="Refresh Google Drive Music"
+        android:icon="@android:drawable/ic_menu_rotate"
+        app:showAsAction="never"
+        android:visible="false" />
+
+</menu>

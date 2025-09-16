@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="140"
+    android:viewportHeight="140">
+
+    <!--
+        Group for the foreground "multiple_image" symbol.
+        The symbol itself is ~140 wide and ~120-125 tall.
+        The translateY is to help center the shorter symbol within the square 140x140 viewport.
+    -->
+    <group android:translateY="10">
+        <!-- Path 26: Multiple Picture Frames symbol -->
+        <path
+            android:fillColor="#CECECE"
+            android:strokeColor="#222222"
+            android:strokeWidth="4"
+            android:pathData="M135.625,6H21.875A4.377,4.377,0,0,0,17.5,10.375V23.5H4.375A4.377,4.377,0,0,0,0,27.875v87.5a4.377,4.377,0,0,0,4.375,4.375h113.75a4.377,4.377,0,0,0,4.375-4.375V102.25h13.125A4.377,4.377,0,0,0,140,97.875v-87.5A4.377,4.377,0,0,0,135.625,6ZM113.75,32.25v69.237l-23.4-20.059a4.375,4.375,0,0,0-5.1-.429L66.511,92.242,38.292,59.994a4.371,4.371,0,0,0-6.383-.212L8.75,82.939V32.25ZM8.75,95.311,34.786,69.276l27.547,31.483a4.367,4.367,0,0,0,5.543.868l19.171-11.5L111.4,111H8.75ZM131.25,93.5H122.5V27.875a4.377,4.377,0,0,0-4.375-4.375H26.25V14.75h105Z" />
+
+        <!-- Path 27: Circle (Sun/Moon in placeholder) -->
+        <!-- This group's translations are relative to its parent group's coordinate system. -->
+        <group
+            android:translateX="41.175"
+            android:translateY="19.496">
+            <!-- Path data for the circle, with equal rx and ry for circular arcs. -->
+            <path
+                android:fillColor="#CECECE"
+                android:strokeColor="#222222"
+                android:strokeWidth="4"
+                android:pathData="M48.724,51.448A14.73,14.73,0,1,0,34,36.724,14.73,14.73,0,0,0,48.724,51.448ZM48.724,30.414a6.31,6.31,0,1,1-6.31,6.31A6.31,6.31,0,0,1,48.724,30.414Z" />
+        </group>
+    </group>
+</vector>

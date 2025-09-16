@@ -1,0 +1,38 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="32dp"
+    android:height="32dp"
+    android:viewportWidth="23"
+    android:viewportHeight="23">
+
+  <!--
+      Paths translated to fit the 20x23 visual content into a 23x23 viewport.
+      Overall translation:
+      Original X to new X: x' = (origX - 6) + 1.5
+      Original Y to new Y: y' = (origY - 4)
+  -->
+
+  <!-- Path 1: Original start (6,24) -->
+  <path
+      android:pathData="M1.5,20a4,3 0,1 0,8 0a4,3 0,1 0,-8 0z"
+      android:fillColor="#333"/>
+
+  <!-- Path 2: Original start (14,10) -->
+  <path
+      android:pathData="M9.5,6h2v14h-2z"
+      android:fillColor="#333"/>
+
+  <!-- Path 3: Original start (16,20) -->
+  <path
+      android:pathData="M11.5,16a4,3 0,1 0,8 0a4,3 0,1 0,-8 0z"
+      android:fillColor="#333"/>
+
+  <!-- Path 4: Original start (24,6) -->
+  <path
+      android:pathData="M19.5,2h2v14h-2z"
+      android:fillColor="#333"/>
+
+  <!-- Path 5: Original start (16,10) -->
+  <path
+      android:pathData="M11.5,6Q15.5,2 21.5,4L21.5,2Q15.5,0 11.5,4Z"
+      android:fillColor="#333"/>
+</vector>

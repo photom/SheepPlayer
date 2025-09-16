@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/navigation_tracks">
+
+    <fragment
+        android:id="@+id/navigation_tracks"
+        android:name="com.hitsuji.sheepplayer2.ui.tracks.TracksFragment"
+        tools:layout="@layout/fragment_tracks" />
+
+    <fragment
+        android:id="@+id/navigation_playing"
+        android:name="com.hitsuji.sheepplayer2.ui.playing.PlayingFragment"
+        tools:layout="@layout/fragment_playing" />
+
+    <fragment
+        android:id="@+id/navigation_pictures"
+        android:name="com.hitsuji.sheepplayer2.ui.pictures.PicturesFragment"
+        tools:layout="@layout/fragment_pictures" />
+
+    <fragment
+        android:id="@+id/navigation_menu"
+        android:name="com.hitsuji.sheepplayer2.ui.menu.MenuFragment"
+        tools:layout="@layout/fragment_menu" />
+</navigation>
