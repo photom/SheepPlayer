@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.hitsuji.sheepplayer2.service.GoogleDriveService
+import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
 
 class MenuViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -28,7 +29,7 @@ class MenuViewModel(application: Application) : AndroidViewModel(application) {
     }
     val musicCount: LiveData<String> = _musicCount
 
-    fun updateGoogleAccountStatus(googleDriveService: GoogleDriveService) {
+    fun updateGoogleAccountStatus(googleDriveService: GoogleDriveServiceInterface) {
         val isSignedIn = googleDriveService.isSignedIn()
         _isSignedIn.value = isSignedIn
 

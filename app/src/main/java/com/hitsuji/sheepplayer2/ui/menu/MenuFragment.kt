@@ -12,13 +12,14 @@ import com.hitsuji.sheepplayer2.MainActivity
 import com.hitsuji.sheepplayer2.databinding.FragmentMenuBinding
 import com.hitsuji.sheepplayer2.service.GoogleDriveService
 import com.hitsuji.sheepplayer2.service.GoogleDriveResult
+import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
 import kotlinx.coroutines.launch
 
 class MenuFragment : Fragment() {
 
     private var _binding: FragmentMenuBinding? = null
     private lateinit var menuViewModel: MenuViewModel
-    private lateinit var googleDriveService: GoogleDriveService
+    private lateinit var googleDriveService: GoogleDriveServiceInterface
 
     // This property is only valid between onCreateView and onDestroyView
     private val binding get() = _binding!!
@@ -136,9 +137,7 @@ class MenuFragment : Fragment() {
                     ).show()
                     updateUIState()
 
-                    // Notify MainActivity to update its state
-                    val mainActivity = activity as? MainActivity
-                    mainActivity?.onGoogleDriveSignInSuccess()
+                    // MainActivity will handle the sign-in success through its auth handler
                 }
                 is GoogleDriveResult.Error -> {
                     Toast.makeText(
@@ -147,9 +146,7 @@ class MenuFragment : Fragment() {
                         Toast.LENGTH_LONG
                     ).show()
                     
-                    // Notify MainActivity to update its state
-                    val mainActivity = activity as? MainActivity
-                    mainActivity?.onGoogleDriveSignInError(result.message, result.exception)
+                    // MainActivity will handle the sign-in error through its auth handler
                 }
             }
         }
@@ -162,9 +159,7 @@ class MenuFragment : Fragment() {
                     Toast.makeText(context, "Signed out from Google Drive", Toast.LENGTH_SHORT).show()
                     updateUIState()
 
-                    // Notify MainActivity to reload local music only
-                    val mainActivity = activity as? MainActivity
-                    mainActivity?.loadLocalMusicOnly()
+                    // MainActivity will handle the sign-out through its auth handler
 
                     updateMusicCount()
                 }
@@ -210,8 +205,7 @@ class MenuFragment : Fragment() {
             try {
                 Toast.makeText(context, "Refreshing Google Drive music...", Toast.LENGTH_SHORT)
                     .show()
-                val mainActivity = activity as? MainActivity
-                mainActivity?.refreshGoogleDriveMusic()
+                Toast.makeText(context, "Use the main menu to refresh Google Drive music", Toast.LENGTH_SHORT).show()
                 updateMusicCount()
             } catch (e: Exception) {
                 Toast.makeText(context, "Error refreshing music: ${e.message}", Toast.LENGTH_LONG)
