@@ -6,7 +6,7 @@ plugins {
 android {
     signingConfigs {
         create("release") {
-            storeFile = file("~/.android/debug.keystore")
+            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
             keyAlias = "AndroidDebugKey"
         }
     }
