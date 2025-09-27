@@ -6,6 +6,36 @@
     android:layout_height="match_parent"
     tools:context=".ui.tracks.TracksFragment">
 
+    <!-- Sync indicator for Google Drive background loading -->
+    <LinearLayout
+        android:id="@+id/syncIndicator"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/teal_200"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ProgressBar
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="8dp"
+            android:indeterminate="true" />
+
+        <TextView
+            android:id="@+id/syncText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/syncing_google_drive"
+            android:textColor="@android:color/white"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewTracks"
         android:layout_width="0dp"
@@ -23,7 +53,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/syncIndicator"
         tools:listitem="@layout/item_track" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

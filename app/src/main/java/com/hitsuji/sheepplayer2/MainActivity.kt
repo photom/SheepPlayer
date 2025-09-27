@@ -246,6 +246,7 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
     fun stopPlayback() = musicPlayerManager.stopPlayback()
     fun syncPlaybackState() = musicPlayerManager.syncPlaybackState()
     fun getGoogleDriveService(): GoogleDriveServiceInterface = googleDriveService
+    fun refreshGoogleDriveMusic() = musicDataHandler.refreshGoogleDriveMusic()
 
     // Menu handling
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

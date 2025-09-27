@@ -3,4 +3,5 @@
     <string name="title_home">Tracks</string>
     <string name="title_dashboard">Playing</string>
     <string name="title_notifications">Pictures</string>
+    <string name="syncing_google_drive">Syncing with Google Drive…</string>
 </resources>
