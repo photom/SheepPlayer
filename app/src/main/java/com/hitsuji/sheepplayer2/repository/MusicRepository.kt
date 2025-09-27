@@ -121,10 +121,33 @@ class MusicRepository(private val context: Context) : MusicRepositoryInterface {
 
     private fun isValidAudioFile(filePath: String): Boolean {
         return try {
+            // Basic input validation
+            if (filePath.isBlank() || filePath.length > 4096) return false
+
+            // Security: Check for path traversal attacks
+            if (filePath.contains("../") || filePath.contains("..\\") ||
+                filePath.contains("//") || filePath.contains("\\\\")) {
+                return false
+            }
+
+            // Security: Ensure path is within expected directories
+            val normalizedPath = filePath.lowercase()
+            if (!normalizedPath.startsWith("/storage/") &&
+                !normalizedPath.startsWith("/sdcard/") &&
+                !normalizedPath.startsWith("/data/media/")) {
+                return false
+            }
+
+            // Validate file extension
             val validExtensions = setOf(".mp3", ".m4a", ".wav", ".flac", ".ogg", ".aac")
             val extension = filePath.substringAfterLast(".", "").lowercase()
-            validExtensions.contains(".$extension") && !filePath.contains("../")
+
+            // Security: Additional character validation
+            val allowedChars = Regex("[a-zA-Z0-9._/\\-\\s]+")
+            return validExtensions.contains(".$extension") &&
+                   allowedChars.matches(filePath)
         } catch (e: Exception) {
+            android.util.Log.w("MusicRepository", "File validation error for: $filePath", e)
             false
         }
     }

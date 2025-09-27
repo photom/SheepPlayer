@@ -6,8 +6,18 @@ plugins {
 android {
     signingConfigs {
         create("release") {
+            // Security: Use proper release signing configuration
+            // TODO: Replace with production keystore for release builds
+            // storeFile = file("path/to/release.keystore")
+            // keyAlias = "release_key"
+            // keyPassword = System.getenv("KEYSTORE_PASSWORD")
+            // storePassword = System.getenv("STORE_PASSWORD")
+
+            // WARNING: Debug keystore should only be used for development
             storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
             keyAlias = "AndroidDebugKey"
+            keyPassword = "android"
+            storePassword = "android"
         }
     }
     namespace = "com.hitsuji.sheepplayer2"

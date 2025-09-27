@@ -306,18 +306,42 @@ class MusicPlayer(private val context: Context) : MusicPlayerInterface {
 
     private fun isValidTrackFile(filePath: String): Boolean {
         return try {
-            if (filePath.isBlank()) return false
-
-            // Check for path traversal attacks
-            if (filePath.contains("../") || filePath.contains("..\\")) {
+            // Basic input validation
+            if (filePath.isBlank() || filePath.length > 4096) {
+                Log.w("MusicPlayer", "Invalid file path: empty or too long")
                 return false
             }
 
+            // Security: Check for various path traversal patterns
+            val suspiciousPatterns = listOf("../", "..\\", "//", "\\\\", "%2e%2e", "..%2f", "..%5c")
+            if (suspiciousPatterns.any { filePath.contains(it, ignoreCase = true) }) {
+                Log.w("MusicPlayer", "Path traversal attempt detected: $filePath")
+                return false
+            }
+
+            // Security: Validate allowed directories
+            val normalizedPath = filePath.lowercase()
+            val allowedPrefixes = listOf("/storage/", "/sdcard/", "/data/media/", "/android_asset/")
+            if (!allowedPrefixes.any { normalizedPath.startsWith(it) }) {
+                Log.w("MusicPlayer", "File path outside allowed directories: $filePath")
+                return false
+            }
+
+            // Security: Check for symbolic link attacks
             val file = File(filePath)
-            // Verify file exists and is readable
-            file.exists() && file.canRead() && file.isFile
+            val canonicalPath = file.canonicalPath
+            if (canonicalPath != filePath && !canonicalPath.lowercase().startsWith("/storage/")) {
+                Log.w("MusicPlayer", "Potential symbolic link attack: $filePath -> $canonicalPath")
+                return false
+            }
+
+            // Verify file properties
+            file.exists() && file.canRead() && file.isFile && file.length() > 0
+        } catch (e: SecurityException) {
+            Log.e("MusicPlayer", "Security exception validating file path: $filePath", e)
+            false
         } catch (e: Exception) {
-            Log.e("MusicPlayer", "Error validating file path", e)
+            Log.e("MusicPlayer", "Error validating file path: $filePath", e)
             false
         }
     }
