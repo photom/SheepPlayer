@@ -4,169 +4,104 @@ This document outlines the architecture and organization of the SheepPlayer Andr
 
 ## 📁 Directory Structure
 
-```
-app/src/main/
-├── java/com/hitsuji/sheepplayer2/
-│   ├── Data.kt                     # Data models (Artist, Album, Track, CachedMetadata)
-│   ├── MainActivity.kt             # Main application activity with Google Drive integration
-│   ├── MusicPlayer.kt              # Core music playback functionality
-│   ├── manager/
-│   │   └── MusicPlayerManager.kt   # Music player state management
-│   ├── repository/
-│   │   └── MusicRepository.kt      # Media data access layer
-│   ├── service/
-│   │   ├── ArtistImageService.kt              # Artist image search and download
-│   │   ├── GoogleDriveService.kt              # Google Drive authentication and API
-│   │   ├── GoogleDriveRepository.kt           # Google Drive data operations
-│   │   ├── GoogleDriveFileDiscovery.kt        # Google Drive file discovery
-│   │   ├── GoogleDriveMetadataService.kt      # Google Drive metadata extraction
-│   │   ├── MetadataLoadingService.kt          # Background metadata loading service
-│   │   ├── MetadataCache.kt                   # Metadata caching system
-│   │   ├── MetadataCacheDbHelper.kt           # SQLite database helper
-│   │   ├── MusicMetadataExtractor.kt          # Music file metadata extraction
-│   │   └── auth/
-│   │       └── GoogleDriveAuthenticator.kt    # Google Drive authentication
-│   ├── ui/
-│   │   ├── pictures/                          # Artist image gallery components
-│   │   │   ├── ArtistImageAdapter.kt          # RecyclerView adapter for images
-│   │   │   ├── PicturesFragment.kt            # Image display fragment
-│   │   │   └── PicturesViewModel.kt           # Image loading logic
-│   │   ├── playing/                           # Currently playing UI components
-│   │   │   ├── PlayingFragment.kt             # Playing track display
-│   │   │   ├── PlayingViewModel.kt            # Playing state management
-│   │   │   └── AlbumTrackAdapter.kt           # Album track list adapter
-│   │   ├── tracks/                            # Music library browsing UI
-│   │   │   ├── TracksFragment.kt              # Music library display
-│   │   │   ├── TracksViewModel.kt             # Tracks state management
-│   │   │   ├── TreeAdapter.kt                 # Hierarchical music adapter
-│   │   │   ├── TreeItem.kt                    # Tree item types
-│   │   │   ├── TrackAdapter.kt                # Track list adapter
-│   │   │   └── SwipeToPlayHelper.kt           # Swipe gesture handling
-│   │   └── menu/                              # Menu and settings UI
-│   │       ├── MenuFragment.kt                # Settings fragment
-│   │       └── MenuViewModel.kt               # Menu state management
-│   └── utils/
-│       ├── Constants.kt                       # Application constants
-│       └── TimeUtils.kt                       # Time formatting utilities
-├── res/
-│   ├── drawable/                   # Vector drawables and icons
-│   ├── layout/                     # XML layout files
-│   ├── mipmap-*/                   # App icons for different densities
-│   ├── navigation/                 # Navigation graph
-│   ├── values/                     # Colors, strings, themes, dimensions
-│   └── xml/                        # Security and backup configurations
-└── AndroidManifest.xml             # App permissions and components
-```
+The SheepPlayer project is organized into several key directories:
+
+- **Data Models**: Defined in `Data.kt`, including Artist, Album, Track, and CachedMetadata.
+- **Main Activity**: `MainActivity.kt` serves as the entry point with Google Drive integration.
+- **Core Playback**: `MusicPlayer.kt` handles the low-level media playback.
+- **Managers**: The `manager/` directory contains `MusicPlayerManager.kt` for state management.
+- **Repositories**: The `repository/` directory contains `MusicRepository.kt` for data access.
+- **Services**: The `service/` directory includes specialized services for Google Drive, metadata loading, caching, and artist images.
+- **UI Components**: The `ui/` directory is partitioned by feature:
+    - `pictures/`: Artist image gallery components.
+    - `playing/`: Currently playing UI components.
+    - `tracks/`: Music library browsing components.
+    - `menu/`: Settings and navigation menu.
+- **Utilities**: `utils/` contains application constants and formatting helpers.
+- **Resources**: The `res/` directory holds drawables, layouts, icons, navigation graphs, and configuration values.
 
 ## 🏛️ Architecture Overview
 
-SheepPlayer follows modern Android architecture principles with clear separation of concerns:
+SheepPlayer follows modern Android architecture principles with clear separation of concerns using the MVVM and Repository patterns.
 
 ### MVVM + Repository Pattern
 
-```
-┌─────────────────┐
-│   MainActivity  │ ← Entry point, handles navigation
-└─────────┬───────┘
-          │
-┌─────────▼───────┐
-│   UI Fragments  │ ← PlayingFragment, TracksFragment, etc.
-└─────────┬───────┘
-          │
-┌─────────▼───────┐
-│   ViewModels    │ ← UI state management (future enhancement)
-└─────────┬───────┘
-          │
-┌─────────▼───────┐
-│   Repository    │ ← MusicRepository - data access layer
-└─────────┬───────┘
-          │
-┌─────────▼───────┐
-│   MediaStore    │ ← Android system media database
-└─────────────────┘
+```mermaid
+flowchart TD
+    MainActivity[MainActivity - Entry Point] --> UI_Fragments[UI Fragments - Screens]
+    UI_Fragments --> ViewModels[ViewModels - State Management]
+    ViewModels --> Repository[MusicRepository - Data Access]
+    Repository --> MediaStore[MediaStore - System Database]
 ```
 
 ## 🔧 Core Components
 
 ### Data Layer
 
-- **`Data.kt`**: Contains data classes for `Artist`, `Album`, and `Track`
-- **`MusicRepository.kt`**: Handles MediaStore queries and data processing
-- **Security**: Implements file path validation and input sanitization
+- **`Data.kt`**: Defines the fundamental data entities of the system.
+- **`MusicRepository.kt`**: Orchestrates media data retrieval and sanitization.
+- **Security**: Ensures all data access follows secure patterns.
 
 ### Business Logic
 
-- **`MusicPlayerManager.kt`**: Manages playback state and player interactions
-- **`MusicPlayer.kt`**: Wraps Android MediaPlayer with security enhancements
-- **Separation**: Clear boundaries between data, business logic, and UI
+- **`MusicPlayerManager.kt`**: Coordinates the playback state between the UI and the player.
+- **`MusicPlayer.kt`**: Handles the actual audio output with built-in security checks.
+- **Separation**: Maintains strict boundaries between raw data and presentation logic.
 
 ### UI Layer
 
-- **`MainActivity.kt`**: Navigation host and permission handling
-- **Fragment-based UI**: Modular screens for different app sections
-- **Adapters**: TreeAdapter for hierarchical music browsing
-- **Material Design**: Consistent with Android design guidelines
+- **`MainActivity.kt`**: Acts as the host for navigation and permission handling.
+- **Fragment-based UI**: Modularizes screens for a responsive user experience.
+- **Adapters**: Handles complex data presentation like hierarchical music trees.
+- **Material Design**: Follows modern Android visual standards.
 
 ### Utilities
 
-- **`Constants.kt`**: Centralized application constants
-- **`TimeUtils.kt`**: Duration formatting utilities
-- **Security Configs**: Network security, backup rules, data extraction rules
+- **`Constants.kt`**: Centralizes global application settings.
+- **`TimeUtils.kt`**: Provides formatting for media durations.
+- **Security Configs**: Configures network and backup policies.
 
 ## 🔄 Data Flow
 
-1. **App Launch**: MainActivity requests media permissions
-2. **Data Loading**: MusicRepository queries MediaStore API
-3. **Data Processing**: Raw media data organized into Artist → Album → Track hierarchy
-4. **UI Update**: Fragments receive processed data and update RecyclerViews
-5. **User Interaction**: Swipe gestures trigger playback through MusicPlayerManager
-6. **Playback**: MusicPlayer handles media playback with security validations
+1.  **App Launch**: The system requests necessary media permissions.
+2.  **Data Loading**: The repository queries the system media database.
+3.  **Data Processing**: Raw data is structured into a logical hierarchy (Artist → Album → Track).
+4.  **UI Update**: Fragments observe the processed data and update the display.
+5.  **User Interaction**: Gestures or clicks trigger playback commands.
+6.  **Playback**: The player validates the request and starts audio output.
 
 ## 🛡️ Security Architecture
 
 ### Input Validation
 
-- File path sanitization in MusicRepository
-- Extension validation for audio files
-- Null safety throughout the codebase
+- Strict sanitization of file paths to prevent traversal.
+- White-listing of audio file extensions.
+- Comprehensive null-safety throughout the data flow.
 
 ### Component Security
 
-- Minimal exported components (only MainActivity)
-- Proper intent filtering
-- Network security configuration
+- Minimal exposure of application components.
+- Specific intent filtering to prevent hijacking.
+- Secure network configurations for cloud services.
 
 ### Data Protection
 
-- No sensitive data storage
-- Disabled automatic backups
-- Secure file access patterns
+- No storage of sensitive user information.
+- Controlled backup policies to prevent data leakage.
+- Secure patterns for all local file interactions.
 
 ## 📦 Dependencies
 
-### Core Android
+The project utilizes standard Android and testing libraries, including:
 
-- `androidx.core:core-ktx` - Kotlin extensions
-- `androidx.appcompat:appcompat` - Backward compatibility
-- `androidx.fragment` - Fragment navigation
-- `androidx.lifecycle` - Lifecycle-aware components
-
-### UI Components
-
-- `com.google.android.material:material` - Material Design components
-- `androidx.constraintlayout:constraintlayout` - Flexible layouts
-- `androidx.navigation` - Fragment navigation
-
-### Testing
-
-- `junit:junit` - Unit testing framework
-- `androidx.test.ext:junit` - Android testing extensions
-- `androidx.test.espresso:espresso-core` - UI testing
+- **Core Android**: Kotlin extensions, AppCompat, Fragments, and Lifecycle components.
+- **UI Components**: Material Design, ConstraintLayout, and Navigation.
+- **Testing**: JUnit, AndroidX Test extensions, and Espresso for UI testing.
 
 ## 🔮 Future Enhancements
 
-- **ViewModels**: Add proper MVVM architecture with ViewModels
-- **Room Database**: Local caching for improved performance
-- **Dependency Injection**: Implement Hilt for better testability
-- **Coroutines**: Replace callback-based async operations
-- **DataBinding**: Eliminate findViewById calls
+- **ViewModels**: Formalizing state management with dedicated ViewModels.
+- **Room Database**: Implementing local caching for performance.
+- **Dependency Injection**: Adopting Hilt for better component lifecycle management.
+- **Coroutines**: Migrating to structured concurrency for asynchronous tasks.
+- **DataBinding**: Enhancing UI-Model synchronization.

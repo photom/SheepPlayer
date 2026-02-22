@@ -10,257 +10,127 @@ The refactoring addressed several SOLID principle violations in the original cod
 
 ### 1. Single Responsibility Principle (SRP)
 
-**Problem**: The original `MainActivity` handled too many responsibilities:
-- Permission management
-- Music data loading
-- Google Drive authentication
-- UI navigation
-- Fragment communication
-- Menu handling
-- Broadcast receiving
+**Problem**: The original `MainActivity` handled too many responsibilities, including permission management, data loading, authentication, navigation, and UI logic.
 
-**Solution**: Created specialized handler classes, each with a single responsibility:
+**Solution**: The logic was extracted into specialized handler classes, each focused on a single responsibility:
 
-#### `PermissionHandler`
-- **File**: `app/src/main/java/com/hitsuji/sheepplayer2/handlers/PermissionHandler.kt`
-- **Responsibility**: Handles permission requests and callbacks
-- **Benefits**: Reusable, testable, focused on permission logic only
-
-#### `GoogleDriveAuthHandler`
-- **File**: `app/src/main/java/com/hitsuji/sheepplayer2/handlers/GoogleDriveAuthHandler.kt`
-- **Responsibility**: Manages Google Drive authentication flow
-- **Benefits**: Isolated auth logic, easier to test and maintain
-
-#### `MusicDataHandler`
-- **File**: `app/src/main/java/com/hitsuji/sheepplayer2/handlers/MusicDataHandler.kt`
-- **Responsibility**: Manages music data loading from local and cloud sources
-- **Benefits**: Centralized data management, clear separation of concerns
+- **`PermissionHandler`**: Manages permission requests and callbacks.
+- **`GoogleDriveAuthHandler`**: Handles the Google Drive authentication flow.
+- **`MusicDataHandler`**: Orchestrates music data loading from various sources.
 
 ### 2. Open/Closed Principle (OCP)
 
-**Problem**: Adding new functionality required modifying existing classes.
+**Problem**: Adding new functionality previously required modifying existing core classes.
 
-**Solution**: Created extensible base classes and interfaces:
+**Solution**: Extensible base classes and strategy interfaces were introduced:
 
-#### `BaseTreeAdapter`
-- **File**: `app/src/main/java/com/hitsuji/sheepplayer2/ui/tracks/BaseTreeAdapter.kt`
-- **Features**:
-  - Template method pattern for customizable behavior
-  - Strategy pattern for filtering and sorting
-  - Observer pattern for interaction handling
-- **Benefits**: Can be extended without modifying core functionality
-
-#### `TreeDataFilter` Strategy
-- **Interface**: `app/src/main/java/com/hitsuji/sheepplayer2/interfaces/TreeAdapterInterface.kt`
-- **Implementation**: `app/src/main/java/com/hitsuji/sheepplayer2/ui/tracks/DefaultTreeDataFilter.kt`
-- **Benefits**: New filtering algorithms can be added without changing adapter code
+- **`BaseTreeAdapter`**: Uses the template method pattern to allow customization of adapter behavior without modifying the base class.
+- **`TreeDataFilter` Strategy**: Allows new filtering and sorting algorithms to be added by implementing an interface.
 
 ### 3. Liskov Substitution Principle (LSP)
 
-**Problem**: Classes were tightly coupled to concrete implementations.
+**Problem**: Components were tightly coupled to specific, concrete implementations.
 
-**Solution**: All components now work with interfaces and can be substituted:
-
-```kotlin
-// Any implementation of MusicPlayerInterface can be used
-val musicPlayer: MusicPlayerInterface = MusicPlayer(context)
-val testMusicPlayer: MusicPlayerInterface = MockMusicPlayer()
-
-// Both work identically in the system
-musicPlayerManager = MusicPlayerManager(musicPlayer)
-```
-
-#### Examples of LSP Compliance:
-- `MusicPlayerInterface` - Any media player implementation works
-- `MusicRepositoryInterface` - Local, cloud, or mock repositories
-- `GoogleDriveServiceInterface` - Real or test Google Drive services
+**Solution**: The system now depends on interfaces. Any implementation of an interface (e.g., a real player or a mock player for testing) can be substituted without affecting the system's behavior. Examples include the `MusicPlayerInterface`, `MusicRepositoryInterface`, and `GoogleDriveServiceInterface`.
 
 ### 4. Interface Segregation Principle (ISP)
 
-**Problem**: Large interfaces forced classes to implement unnecessary methods.
+**Problem**: Large, monolithic interfaces forced classes to implement methods they didn't need.
 
-**Solution**: Created focused, cohesive interfaces:
+**Solution**: Interfaces were split into small, cohesive units focused on specific needs:
 
-#### `NavigationController`
-```kotlin
-interface NavigationController {
-    fun switchToPlayingTab()
-}
-```
-
-#### `FragmentNotifier`
-```kotlin
-interface FragmentNotifier {
-    fun notifyDataLoaded()
-    fun notifyPlaybackStateChanged()
-}
-```
-
-#### `PlaybackStateListener`
-```kotlin
-interface PlaybackStateListener {
-    fun onPlaybackStarted(track: Track)
-    fun onPlaybackPaused(track: Track)
-    fun onPlaybackStopped()
-    fun onPlaybackError(track: Track, error: String)
-    fun onPlaybackCompleted(track: Track)
-}
-```
-
-**Benefits**: Classes only depend on methods they actually use.
+- **`NavigationController`**: Handles only tab switching logic.
+- **`FragmentNotifier`**: Dedicated to data and state change notifications.
+- **`PlaybackStateListener`**: Specifically for monitoring playback events like start, stop, and error.
 
 ### 5. Dependency Inversion Principle (DIP)
 
-**Problem**: High-level modules depended on low-level modules directly.
+**Problem**: High-level modules were directly dependent on low-level implementation details.
 
-**Solution**: Introduced abstractions and dependency injection:
+**Solution**: Abstractions were introduced to decouple the layers. High-level components like activities now depend on interfaces, and the concrete implementations are provided through a factory.
 
-#### `DependencyFactory`
-- **File**: `app/src/main/java/com/hitsuji/sheepplayer2/factory/DependencyFactory.kt`
-- **Purpose**: Centralized dependency creation and injection
-- **Benefits**: Easy to swap implementations, supports testing
-
-#### Interface-Based Dependencies
-```kotlin
-// High-level MainActivity depends on abstractions
-class MainActivityRefactored : AppCompatActivity() {
-    private lateinit var musicRepository: MusicRepositoryInterface
-    private lateinit var musicPlayer: MusicPlayerInterface
-    private lateinit var googleDriveService: GoogleDriveServiceInterface
-}
-```
+- **`DependencyFactory`**: Centralizes the creation and injection of dependencies, allowing for easy swapping of implementations and improved testability.
 
 ## Architectural Improvements
 
 ### Clean Architecture Layers
 
-1. **Presentation Layer**: Activities, Fragments, Adapters
-2. **Business Logic Layer**: Handlers, Managers
-3. **Data Layer**: Repositories, Services
-4. **Infrastructure Layer**: Interfaces, Factories
+```mermaid
+graph LR
+    subgraph Presentation
+        UI[Activities/Fragments]
+        VM[ViewModels]
+    end
+    subgraph BusinessLogic
+        Handlers[Handlers/Managers]
+    end
+    subgraph Data
+        Repo[Repositories/Services]
+    end
+    subgraph Infrastructure
+        Infra[Interfaces/Factories]
+    end
+
+    UI --> Handlers
+    Handlers --> Repo
+    Repo --> Infra
+```
 
 ### Design Patterns Used
 
-1. **Factory Pattern**: `DependencyFactory` for object creation
-2. **Strategy Pattern**: `TreeDataFilter` for different filtering algorithms
-3. **Observer Pattern**: Callback interfaces for event handling
-4. **Template Method Pattern**: `BaseTreeAdapter` for extensible behavior
-5. **Repository Pattern**: `MusicRepository` for data access abstraction
+1.  **Factory Pattern**: Used in `DependencyFactory` for decoupled object creation.
+2.  **Strategy Pattern**: Applied to `TreeDataFilter` for flexible data processing.
+3.  **Observer Pattern**: Implemented via callback interfaces for event handling.
+4.  **Template Method Pattern**: Used in `BaseTreeAdapter` to support UI extensions.
+5.  **Repository Pattern**: Standardizes data access across local and cloud sources.
 
 ## Migration Path
 
-### Phase 1: Interface Introduction (Completed)
-- Created interfaces for all major components
-- Updated existing classes to implement interfaces
-- No breaking changes to existing functionality
+### Phase 1: Interface Introduction
+Abstractions were defined for all major components, and existing classes were updated to implement them.
 
-### Phase 2: Refactored Components (Completed)
-- `MainActivityRefactored` - SOLID-compliant version
-- `MusicPlayerManagerRefactored` - Clean manager implementation
-- Handler classes for specific responsibilities
+### Phase 2: Refactored Components
+New, SOLID-compliant versions of the main activity, playback manager, and handlers were created.
 
-### Phase 3: Gradual Migration (Recommended)
-1. Replace `MainActivity` with `MainActivityRefactored`
-2. Update fragments to use new interfaces
-3. Replace `MusicPlayerManager` with refactored version
-4. Extend adapters using `BaseTreeAdapter`
+### Phase 3: Gradual Migration
+The system recommends a step-by-step replacement of legacy components with the new refactored versions to ensure stability.
 
 ## Benefits Achieved
 
-### Maintainability
-- Single responsibility classes are easier to understand and modify
-- Changes to one component don't affect others
-- Clear separation of concerns
+-   **Maintainability**: Small, focused classes are easier to understand and modify.
+-   **Testability**: Interface-based design allows for easy mocking in unit tests.
+-   **Extensibility**: New features can be added with minimal impact on existing code.
+-   **Code Quality**: Reduced coupling and higher cohesion lead to a more robust system.
 
-### Testability
-- Interfaces allow easy mocking for unit tests
-- Isolated responsibilities can be tested independently
-- Dependency injection supports test doubles
+## Architectural Design Pattern
 
-### Extensibility
-- New features can be added without modifying existing code
-- Strategy pattern allows algorithm swapping
-- Template methods enable customization
+The following diagram illustrates how the refactored components interact through a centralized factory and interfaces.
 
-### Code Quality
-- Reduced coupling between components
-- Higher cohesion within components
-- Better error handling and logging
-
-## Example Usage
-
-### Using the Refactored Architecture
-
-```kotlin
-class ExampleActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        
-        // Use factory for dependency creation
-        val dependencies = DependencyFactory.createCoreDependencies(this)
-        
-        // All components work with interfaces
-        val musicPlayer: MusicPlayerInterface = dependencies.musicPlayer
-        val repository: MusicRepositoryInterface = dependencies.musicRepository
-        
-        // Easy to extend with new implementations
-        val customFilter = CustomTreeDataFilter() // Your implementation
-        adapter.setDataFilter(customFilter)
+```mermaid
+classDiagram
+    class MainActivity {
+        -MusicPlayerInterface player
+        -MusicRepositoryInterface repo
     }
-}
-```
-
-### Adding New Features
-
-```kotlin
-// New filtering strategy without modifying existing code
-class FuzzySearchFilter : TreeDataFilter {
-    override fun filter(query: String, items: List<TreeItem>): List<TreeItem> {
-        // Implement fuzzy search algorithm
-        return items // Your implementation
+    class DependencyFactory {
+        +createCoreDependencies()
     }
-}
-
-// Use it without changing adapter code
-adapter.setDataFilter(FuzzySearchFilter())
-```
-
-## Testing Support
-
-The refactored architecture greatly improves testability:
-
-```kotlin
-class MusicPlayerTest {
-    @Test
-    fun testPlaybackWithMockService() {
-        val mockGoogleDrive = MockGoogleDriveService()
-        val musicPlayer = DependencyFactory.createTestMusicPlayer(
-            context, 
-            mockGoogleDrive
-        )
-        
-        // Test with controlled dependencies
-        assertTrue(musicPlayer.loadTrack(testTrack))
+    class MusicPlayerInterface {
+        <<interface>>
+        +loadTrack()
+        +play()
     }
-}
+    class MusicPlayer {
+        +loadTrack()
+        +play()
+    }
+    
+    MainActivity ..> DependencyFactory : uses
+    MainActivity --> MusicPlayerInterface : depends on
+    MusicPlayer ..|> MusicPlayerInterface : implements
+    DependencyFactory ..> MusicPlayer : creates
 ```
 
 ## Future Improvements
 
-### Potential Enhancements
-1. **Dependency Injection Framework**: Consider Hilt or Koin for more sophisticated DI
-2. **Observer Pattern**: Implement more granular event systems
-3. **Command Pattern**: For undo/redo functionality
-4. **State Pattern**: For complex player state management
-
-### Extension Points
-- New music sources (streaming services, network storage)
-- Different player engines (ExoPlayer, custom implementations)
-- Additional sorting and filtering algorithms
-- Plugin architecture for third-party extensions
-
-## Conclusion
-
-The SOLID principles refactoring has transformed the SheepPlayer codebase into a maintainable, extensible, and testable architecture. The new design supports future growth while maintaining clean separation of concerns and enabling easy unit testing.
-
-The refactored components can be gradually adopted alongside the existing code, ensuring a smooth migration path without breaking changes.
+Potential future enhancements include adopting a formal Dependency Injection framework like Hilt, implementing more granular event systems, and using state patterns for complex player logic.

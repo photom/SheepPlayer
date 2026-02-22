@@ -1,7 +1,6 @@
 # Build & Setup Guide 🔧
 
-This guide provides step-by-step instructions for setting up, building, and running the SheepPlayer
-Android application.
+This guide provides step-by-step instructions for setting up, building, and running the SheepPlayer Android application.
 
 ## 📋 Prerequisites
 
@@ -21,237 +20,84 @@ Android application.
 
 ## 🚀 Setup Instructions
 
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/SheepPlayer.git
-cd SheepPlayer
-```
+### 1. Obtain the Source Code
+Download or clone the SheepPlayer repository from the project's source control hosting service and navigate to the project root directory.
 
 ### 2. Android Studio Setup
+1.  **Open Android Studio** and select the option to import or open an existing project.
+2.  **Navigate to the SheepPlayer directory** and confirm the selection.
+3.  **Configure the SDK**: Access the Project Structure settings and ensure the Android SDK path is correctly set, verifying that API Level 33 or higher is installed.
 
-1. **Open Android Studio**
-2. **Import Project**:
-    - Select "Open an existing Android Studio project"
-    - Navigate to the cloned SheepPlayer directory
-    - Click "OK"
-
-3. **SDK Setup**:
-    - Go to `File > Project Structure > SDK Location`
-    - Ensure Android SDK path is set correctly
-    - Verify API Level 33+ is installed
-
-### 3. Gradle Sync
-
-Android Studio should automatically sync the project. If not:
-
-- Click "Sync Now" banner at the top
-- Or go to `File > Sync Project with Gradle Files`
+### 3. Gradle Synchronization
+Android Studio will typically initiate a synchronization process upon opening the project. If it does not, manually trigger a sync via the "Sync Project with Gradle Files" option in the File menu.
 
 ## 🔨 Build Instructions
 
-### Debug Build
+The project can be built using either the Android Studio interface or the command line.
 
-```bash
-# Command line build
-./gradlew assembleDebug
+### Common Build Tasks
 
-# Or in Android Studio
-Build > Make Project (Ctrl+F9)
-```
-
-### Release Build
-
-```bash
-# Command line build
-./gradlew assembleRelease
-
-# Generate signed APK in Android Studio
-Build > Generate Signed Bundle/APK
-```
+| Target | Command Line Task | Android Studio Action |
+| :--- | :--- | :--- |
+| **Debug Build** | assembleDebug | Build > Make Project |
+| **Release Build** | assembleRelease | Build > Generate Signed APK |
+| **Clean Project** | clean | Build > Clean Project |
+| **Run Tests** | test | Run > Run 'Tests' |
 
 ## 🏃‍♂️ Running the App
 
-### On Physical Device
+### On a Physical Device
+1.  **Enable Developer Options**: In the device settings, find the "Build Number" and tap it seven times. Enable "USB Debugging" in the now-visible Developer Options.
+2.  **Connect the Device**: Connect via USB and accept any debugging permission prompts.
+3.  **Execute**: Use the "Run" button in Android Studio or the appropriate shortcut.
 
-1. **Enable Developer Options**:
-    - Go to Settings > About Phone
-    - Tap "Build Number" 7 times
-    - Enable "USB Debugging" in Developer Options
-
-2. **Connect Device**:
-    - Connect via USB cable
-    - Accept USB debugging permission
-    - Device should appear in Android Studio
-
-3. **Run App**:
-    - Click "Run" button (green play icon)
-    - Or press `Shift + F10`
-
-### On Emulator
-
-1. **Create Virtual Device**:
-    - Tools > AVD Manager
-    - Click "Create Virtual Device"
-    - Choose device (Pixel 4 recommended)
-    - Select API Level 33+ system image
-    - Configure and finish setup
-
-2. **Run App**:
-    - Start emulator
-    - Click "Run" button in Android Studio
+### On an Emulator
+1.  **Create a Virtual Device**: Use the AVD Manager to set up a new device (e.g., Pixel 4) using an API Level 33 or higher system image.
+2.  **Execute**: Start the emulator and click the "Run" button in Android Studio.
 
 ## ⚙️ Configuration
 
-### Gradle Configuration
+### Build Settings
+The application's core build parameters are managed within the Gradle configuration:
 
-Current configuration in `app/build.gradle.kts`:
-
-```kotlin
-android {
-    compileSdk = 36
-    
-    defaultConfig {
-        applicationId = "com.hitsuji.sheepplayer"
-        minSdk = 33
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
-    }
-    
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-}
-```
+| Setting | Value |
+| :--- | :--- |
+| **Application ID** | com.hitsuji.sheepplayer |
+| **Minimum SDK** | 33 |
+| **Target/Compile SDK** | 36 |
+| **Java Compatibility** | Version 11 |
+| **Kotlin JVM Target** | 11 |
 
 ### Dependencies
-
-Key dependencies are managed in `gradle/libs.versions.toml`:
-
-- Core KTX: 1.10.1
-- AppCompat: 1.6.1
-- Material: 1.10.0
-- Navigation: 2.6.0
-- Lifecycle: 2.6.1
+Key libraries include Core KTX, AppCompat, Material Components, Navigation, and Lifecycle components, with versions managed in the centralized library catalog.
 
 ## 🧪 Build Variants
 
-### Debug
-
-- **Purpose**: Development and testing
-- **Features**: Debugging enabled, logs visible
-- **Signing**: Debug keystore (auto-generated)
-
-### Release
-
-- **Purpose**: Production deployment
-- **Features**: Code optimization, no debug logs
-- **Signing**: Requires production keystore
+-   **Debug**: Intended for development and testing; includes full logging and is signed with an automatically generated debug key.
+-   **Release**: Optimized for production; excludes debug logs and requires a secure production keystore for signing.
 
 ## 📱 Permissions Setup
-
-The app requires the following permissions:
-
-- `READ_MEDIA_AUDIO` (API 33+)
-- `READ_EXTERNAL_STORAGE` (API 32 and below)
-- `WAKE_LOCK` (for continuous playback)
-
-These are automatically requested at runtime.
+SheepPlayer automatically requests necessary permissions at runtime, including media access for audio files and wake locks for continuous background playback.
 
 ## 🔧 Development Tools
 
-### Useful Gradle Commands
-
-```bash
-# Clean build
-./gradlew clean
-
-# Run tests
-./gradlew test
-
-# Run lint checks
-./gradlew lint
-
-# Generate APK
-./gradlew assembleDebug
-
-# Install on connected device
-./gradlew installDebug
-```
-
-### Android Studio Shortcuts
-
-- **Build**: `Ctrl+F9` (Cmd+F9 on Mac)
-- **Run**: `Shift+F10` (Ctrl+R on Mac)
-- **Debug**: `Shift+F9` (Ctrl+D on Mac)
-- **Clean**: `Build > Clean Project`
+### Common Keyboard Shortcuts
+-   **Build Project**: Ctrl+F9 (Windows/Linux) or Cmd+F9 (Mac)
+-   **Run Application**: Shift+F10 (Windows/Linux) or Ctrl+R (Mac)
+-   **Debug Application**: Shift+F9 (Windows/Linux) or Ctrl+D (Mac)
 
 ## 🐛 Troubleshooting Build Issues
 
-### Common Problems
-
-1. **Gradle Sync Failed**:
-   ```bash
-   # Clear Gradle cache
-   ./gradlew clean
-   # Invalidate caches in Android Studio
-   File > Invalidate Caches and Restart
-   ```
-
-2. **SDK Not Found**:
-    - Check SDK path in Project Structure
-    - Ensure API Level 33+ is installed
-    - Update SDK through SDK Manager
-
-3. **Kotlin Version Conflicts**:
-    - Check `libs.versions.toml` for version consistency
-    - Update to compatible Kotlin version
-
-4. **Build Tools Issues**:
-   ```bash
-   # Update build tools
-   sdkmanager "build-tools;34.0.0"
-   ```
+### Common Solutions
+-   **Sync Failures**: If Gradle synchronization fails, try clearing the Gradle cache or using the "Invalidate Caches and Restart" option in Android Studio.
+-   **SDK Errors**: Verify the SDK path in the Project Structure and ensure all required API levels are installed via the SDK Manager.
+-   **Version Conflicts**: Check the library catalog for consistency and ensure the Kotlin version is compatible with the Gradle plugin.
 
 ### Performance Optimization
-
-- **Parallel Builds**: Add to `gradle.properties`:
-  ```
-  org.gradle.parallel=true
-  org.gradle.caching=true
-  ```
-
-- **Memory Settings**:
-  ```
-  org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m
-  ```
+To speed up builds, enable parallel execution and build caching in the project's Gradle properties. Additionally, ensure the JVM is allocated sufficient memory (at least 4GB) for the build process.
 
 ## 🚢 Deployment
-
-### APK Generation
-
-1. Build > Generate Signed Bundle/APK
-2. Select APK
-3. Choose/create keystore
-4. Select release build variant
-5. Generate APK
-
-### Play Store Bundle
-
-1. Build > Generate Signed Bundle/APK
-2. Select Android App Bundle
-3. Configure signing
-4. Upload to Play Console
+For production deployment, generate a signed APK or Android App Bundle via the "Generate Signed Bundle/APK" wizard in Android Studio, following the prompts to configure your production keystore.
 
 ## 📚 Additional Resources
-
-- [Android Studio User Guide](https://developer.android.com/studio)
-- [Gradle Build Tool](https://gradle.org/guides/)
-- [Kotlin Documentation](https://kotlinlang.org/docs/)
-- [Android Developer Guides](https://developer.android.com/guide)
+Consult the official Android Studio, Gradle, Kotlin, and Android developer documentation for more detailed information on advanced build configurations and deployment strategies.

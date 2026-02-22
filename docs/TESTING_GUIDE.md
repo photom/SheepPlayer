@@ -1,530 +1,108 @@
 # Testing Guide 🧪
 
-This document outlines the testing strategy, guidelines, and implementation details for the
-SheepPlayer Android application.
+This document outlines the testing strategy, guidelines, and implementation details for the SheepPlayer Android application.
 
 ## 📋 Testing Strategy
 
-SheepPlayer follows a comprehensive testing approach with multiple layers:
+SheepPlayer follows a comprehensive testing approach with multiple layers to ensure reliability, security, and performance.
 
-```
-┌─────────────────────┐
-│    UI Tests (E2E)   │ ← Espresso tests for user workflows
-├─────────────────────┤
-│  Integration Tests  │ ← Component interaction testing
-├─────────────────────┤
-│    Unit Tests       │ ← Logic and utility testing
-└─────────────────────┘
+```mermaid
+flowchart TD
+    UI[UI Tests - Espresso] -- E2E Workflows --> Integration
+    Integration[Integration Tests] -- Component Interaction --> Unit
+    Unit[Unit Tests] -- Logic & Utilities --> Codebase
 ```
 
 ## 🎯 Testing Objectives
 
-- **Functionality**: Verify core music player operations
-- **Security**: Validate file path sanitization and input validation
-- **UI/UX**: Ensure proper user interface behavior
-- **Performance**: Test with large music libraries
-- **Reliability**: Handle edge cases and error conditions
+-   **Functionality**: Verification of core music player operations.
+-   **Security**: Validation of file path sanitization and input filtering.
+-   **UI/UX**: Ensuring proper user interface behavior and responsiveness.
+-   **Performance**: Testing stability and speed with large music libraries.
+-   **Reliability**: Handling of edge cases and error conditions gracefully.
 
 ## 🔬 Unit Testing
 
-### Current Test Structure
+Unit tests focus on the smallest testable parts of the application in isolation.
 
-```
-app/src/test/java/com/hitsuji/sheepplayer2/
-└── ExampleUnitTest.kt
-```
-
-### Recommended Unit Tests
-
-#### `TimeUtils` Tests
-
-```kotlin
-@Test
-fun testFormatDuration() {
-    // Test time formatting utility
-    assertEquals("0:00", TimeUtils.formatDuration(0))
-    assertEquals("0:30", TimeUtils.formatDuration(30000))
-    assertEquals("1:30", TimeUtils.formatDuration(90000))
-    assertEquals("10:05", TimeUtils.formatDuration(605000))
-}
-
-@Test
-fun testFormatDurationEdgeCases() {
-    // Test negative values
-    assertEquals("0:00", TimeUtils.formatDuration(-1000))
-    
-    // Test very large values
-    val largeValue = Long.MAX_VALUE
-    assertNotNull(TimeUtils.formatDuration(largeValue))
-}
-```
-
-#### `MusicRepository` Security Tests
-
-```kotlin
-class MusicRepositoryTest {
-    
-    @Test
-    fun testValidAudioFileExtensions() {
-        val repository = MusicRepository(mockContext)
-        
-        assertTrue(repository.isValidAudioFile("/path/song.mp3"))
-        assertTrue(repository.isValidAudioFile("/path/song.flac"))
-        assertFalse(repository.isValidAudioFile("/path/document.txt"))
-        assertFalse(repository.isValidAudioFile("/path/image.jpg"))
-    }
-    
-    @Test
-    fun testPathTraversalPrevention() {
-        val repository = MusicRepository(mockContext)
-        
-        // Should reject path traversal attempts
-        assertFalse(repository.isValidAudioFile("../../../etc/passwd"))
-        assertFalse(repository.isValidAudioFile("/music/../../../sensitive.mp3"))
-        assertFalse(repository.isValidAudioFile("music\\..\\..\\file.mp3"))
-    }
-    
-    @Test
-    fun testNullAndEmptyPaths() {
-        val repository = MusicRepository(mockContext)
-        
-        assertFalse(repository.isValidAudioFile(""))
-        assertFalse(repository.isValidAudioFile("   "))
-        // Note: null check handled at call site
-    }
-}
-```
-
-#### `MusicPlayer` Tests
-
-```kotlin
-class MusicPlayerTest {
-    
-    private lateinit var mockContext: Context
-    private lateinit var musicPlayer: MusicPlayer
-    
-    @Before
-    fun setUp() {
-        mockContext = mock(Context::class.java)
-        musicPlayer = MusicPlayer(mockContext)
-    }
-    
-    @Test
-    fun testValidFilePathAcceptance() {
-        val validTrack = Track(
-            id = 1L,
-            title = "Test Song",
-            artistName = "Test Artist",
-            albumName = "Test Album",
-            duration = 180000L,
-            filePath = "/storage/music/song.mp3"
-        )
-        
-        // Mock file system validation
-        mockkStatic(File::class)
-        val mockFile = mockk<File>()
-        every { File(any<String>()) } returns mockFile
-        every { mockFile.exists() } returns true
-        every { mockFile.canRead() } returns true
-        every { mockFile.isFile } returns true
-        
-        // Should accept valid file
-        assertTrue(musicPlayer.loadTrack(validTrack))
-        
-        unmockkStatic(File::class)
-    }
-    
-    @Test
-    fun testInvalidFilePathRejection() {
-        val invalidTrack = Track(
-            id = 1L,
-            title = "Test Song",
-            artistName = "Test Artist", 
-            albumName = "Test Album",
-            duration = 180000L,
-            filePath = "../../../malicious.mp3"
-        )
-        
-        // Should reject path traversal
-        assertFalse(musicPlayer.loadTrack(invalidTrack))
-    }
-    
-    @After
-    fun tearDown() {
-        musicPlayer.release()
-    }
-}
-```
+-   **Test Location**: Found in the `app/src/test/java/com/hitsuji/sheepplayer2/` directory.
+-   **TimeUtils Tests**: Validate duration formatting for standard, edge, and negative cases.
+-   **MusicRepository Security Tests**: Verify audio file extension validation and ensure protection against path traversal attacks.
+-   **MusicPlayer Tests**: Ensure only valid and readable files are loaded into the media player engine.
 
 ## 🎭 Integration Testing
 
-### Fragment Integration Tests
+Integration tests verify that different modules or services work together correctly.
 
-```kotlin
-@RunWith(AndroidJUnit4::class)
-class TracksFragmentTest {
-    
-    @Rule
-    @JvmField
-    val activityRule = ActivityTestRule(MainActivity::class.java)
-    
-    @Test
-    fun testTrackListDisplay() {
-        // Test that tracks are displayed correctly
-        onView(withId(R.id.recyclerViewTracks))
-            .check(matches(isDisplayed()))
-    }
-    
-    @Test
-    fun testSwipeToPlay() {
-        // Test swipe gesture functionality
-        onView(withId(R.id.recyclerViewTracks))
-            .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, swipeRight()))
-            
-        // Verify navigation to playing tab
-        onView(withId(R.id.navigation_playing))
-            .check(matches(isSelected()))
-    }
-}
-```
+-   **Fragment Integration**: Tests the interaction between UI fragments and their underlying logic (e.g., verifying that a swipe gesture in the tracks list correctly updates the playback state).
+-   **Service Interaction**: Ensures that services like the Google Drive repository and the metadata extractor communicate effectively.
 
 ## 🤖 UI Testing (Espresso)
 
-### Current Test Structure
+UI tests simulate user interactions to verify the end-to-end functionality of the application.
 
-```
-app/src/androidTest/java/com/hitsuji/sheepplayer2/
-└── ExampleInstrumentedTest.kt
-```
-
-### Recommended UI Tests
-
-#### Permission Flow Test
-
-```kotlin
-@RunWith(AndroidJUnit4::class)
-class PermissionFlowTest {
-    
-    @Rule
-    @JvmField
-    val activityRule = ActivityTestRule(MainActivity::class.java)
-    
-    @Test
-    fun testPermissionRequestFlow() {
-        // Test permission request and handling
-        
-        // If permission not granted, should show permission dialog
-        // If permission granted, should load music library
-        
-        onView(withId(R.id.recyclerViewTracks))
-            .check(matches(isDisplayed()))
-    }
-}
-```
-
-#### Music Playback UI Test
-
-```kotlin
-@RunWith(AndroidJUnit4::class)
-class PlaybackUITest {
-    
-    @Rule
-    @JvmField
-    val activityRule = ActivityTestRule(MainActivity::class.java)
-    
-    @Test
-    fun testPlayButtonToggle() {
-        // Navigate to playing fragment
-        onView(withId(R.id.navigation_playing)).perform(click())
-        
-        // If track is loaded, test play/pause toggle
-        onView(withId(R.id.playStopButton))
-            .perform(click())
-            
-        // Verify button state changes
-        onView(withId(R.id.playStopButton))
-            .check(matches(hasContentDescription("Stop")))
-    }
-    
-    @Test
-    fun testNoTrackMessage() {
-        // Navigate to playing fragment when no track is loaded
-        onView(withId(R.id.navigation_playing)).perform(click())
-        
-        // Should show "no track" message
-        onView(withId(R.id.noTrackMessage))
-            .check(matches(isDisplayed()))
-    }
-}
-```
-
-#### Navigation Test
-
-```kotlin
-@RunWith(AndroidJUnit4::class)
-class NavigationTest {
-    
-    @Rule
-    @JvmField
-    val activityRule = ActivityTestRule(MainActivity::class.java)
-    
-    @Test
-    fun testBottomNavigationTabs() {
-        // Test tracks tab
-        onView(withId(R.id.navigation_tracks)).perform(click())
-        onView(withId(R.id.recyclerViewTracks)).check(matches(isDisplayed()))
-        
-        // Test playing tab
-        onView(withId(R.id.navigation_playing)).perform(click())
-        // Should show playing fragment content
-        
-        // Test pictures tab
-        onView(withId(R.id.navigation_pictures)).perform(click())
-        // Should show pictures fragment content
-    }
-}
-```
+-   **Test Location**: Found in the `app/src/androidTest/java/com/hitsuji/sheepplayer2/` directory.
+-   **Permission Flow**: Validates how the app handles permission requests and subsequent data loading.
+-   **Playback UI**: Tests the behavior of the play/pause toggle and the display of track information.
+-   **Navigation**: Verifies that switching between bottom navigation tabs (Tracks, Playing, Pictures) works as expected.
 
 ## 📊 Test Data Management
 
-### Mock Data Creation
+The project utilizes a centralized `TestDataFactory` strategy to ensure consistent and reproducible test scenarios.
 
-```kotlin
-object TestDataFactory {
-    
-    fun createTestTrack(
-        id: Long = 1L,
-        title: String = "Test Song",
-        artist: String = "Test Artist",
-        album: String = "Test Album",
-        duration: Long = 180000L,
-        filePath: String = "/test/path/song.mp3"
-    ) = Track(id, title, artist, album, duration, filePath)
-    
-    fun createTestAlbum(
-        id: Long = 1L,
-        title: String = "Test Album",
-        artistName: String = "Test Artist",
-        trackCount: Int = 3
-    ) = Album(id, title, artistName).apply {
-        repeat(trackCount) { index ->
-            tracks.add(createTestTrack(
-                id = index.toLong(),
-                title = "Track ${index + 1}",
-                artist = artistName,
-                album = title
-            ))
-        }
-    }
-    
-    fun createTestArtist(
-        id: Long = 1L,
-        name: String = "Test Artist",
-        albumCount: Int = 2
-    ) = Artist(id, name).apply {
-        repeat(albumCount) { index ->
-            albums.add(createTestAlbum(
-                id = index.toLong(),
-                title = "Album ${index + 1}",
-                artistName = name
-            ))
-        }
-    }
-}
-```
+-   **Mock Entities**: Provides helpers to create standardized `Track`, `Album`, and `Artist` objects for tests.
+-   **Hierarchy Simulation**: Can generate complex mock data structures, such as artists with multiple albums and tracks.
 
 ## 🔐 Security Testing
 
-### File Security Tests
+Security testing is a priority, focusing on protecting user data and system integrity.
 
-```kotlin
-class FileSecurityTest {
-    
-    @Test
-    fun testMaliciousFilePathPrevention() {
-        val maliciousPaths = listOf(
-            "../../../etc/passwd",
-            "..\\..\\..\\windows\\system32\\config\\sam",
-            "/data/data/other.app/sensitive.file",
-            "content://malicious.provider/data",
-            "file:///proc/version"
-        )
-        
-        maliciousPaths.forEach { path ->
-            assertFalse(
-                "Should reject malicious path: $path",
-                isValidAudioFile(path)
-            )
-        }
-    }
-    
-    @Test
-    fun testValidAudioPaths() {
-        val validPaths = listOf(
-            "/storage/emulated/0/Music/song.mp3",
-            "/storage/sdcard1/Music/album/track.flac",
-            "/data/media/0/Music/artist/song.m4a"
-        )
-        
-        validPaths.forEach { path ->
-            // Note: This would require file system mocking
-            // The path structure should be considered valid
-            assertTrue(
-                "Should accept valid audio path: $path",
-                hasValidAudioExtension(path)
-            )
-        }
-    }
-}
-```
+-   **Malicious Path Prevention**: Explicitly tests against common attack vectors like path traversal and unauthorized file access.
+-   **Extension Validation**: Ensures that only supported media formats are processed by the system.
 
 ## 🎯 Performance Testing
 
-### Large Dataset Tests
+Performance tests ensure the app remains responsive under heavy load.
 
-```kotlin
-class PerformanceTest {
-    
-    @Test
-    fun testLargeMusicLibraryHandling() {
-        // Test with large number of tracks (1000+)
-        val largeLibrary = generateLargeMusicLibrary(1000)
-        
-        val startTime = System.currentTimeMillis()
-        val processedData = processAndStructureMusicData(largeLibrary)
-        val endTime = System.currentTimeMillis()
-        
-        // Should process within reasonable time (e.g., < 5 seconds)
-        assertTrue(
-            "Processing should complete within 5 seconds",
-            (endTime - startTime) < 5000
-        )
-        
-        assertNotNull(processedData)
-        assertTrue(processedData.isNotEmpty())
-    }
-    
-    @Test
-    fun testMemoryUsageWithLargeLibrary() {
-        // Test memory consumption with large datasets
-        val runtime = Runtime.getRuntime()
-        val initialMemory = runtime.totalMemory() - runtime.freeMemory()
-        
-        val largeLibrary = generateLargeMusicLibrary(5000)
-        processAndStructureMusicData(largeLibrary)
-        
-        val finalMemory = runtime.totalMemory() - runtime.freeMemory()
-        val memoryIncrease = finalMemory - initialMemory
-        
-        // Memory increase should be reasonable (e.g., < 100MB)
-        assertTrue(
-            "Memory increase should be reasonable",
-            memoryIncrease < 100 * 1024 * 1024 // 100MB
-        )
-    }
-}
-```
+-   **Large Dataset Handling**: Validates that the system can process and display libraries containing thousands of tracks within a few seconds.
+-   **Memory Usage**: Monitors memory consumption during intensive operations to prevent leaks and crashes.
 
 ## 🛠️ Testing Tools & Frameworks
 
-### Dependencies Required
+The following tools are used to maintain the testing suite:
 
-```kotlin
-// Unit Testing
-testImplementation 'junit:junit:4.13.2'
-testImplementation 'org.mockito:mockito-core:4.6.1'
-testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
-testImplementation 'org.robolectric:robolectric:4.9'
-
-// Android Testing
-androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-androidTestImplementation 'androidx.test.espresso:espresso-contrib:3.5.1'
-androidTestImplementation 'androidx.test:runner:1.5.2'
-androidTestImplementation 'androidx.test:rules:1.5.0'
-```
+| Category | Tools |
+| :--- | :--- |
+| **Unit Testing** | JUnit 4, Mockito, MockK, Robolectric |
+| **Android Testing** | AndroidX Test, Espresso |
+| **Automation** | Gradle for execution, JaCoCo for coverage |
 
 ### Running Tests
 
-```bash
-# Run all unit tests
-./gradlew test
+Tests can be executed through the Gradle wrapper:
 
-# Run specific test class
-./gradlew test --tests "TimeUtilsTest"
-
-# Run all instrumented tests
-./gradlew connectedAndroidTest
-
-# Run specific instrumented test
-./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.hitsuji.sheepplayer.NavigationTest
-
-# Generate test coverage report
-./gradlew jacocoTestReport
-```
-
-### CI/CD Integration
-
-```yaml
-# Example GitHub Actions workflow
-name: Android CI
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up JDK 11
-      uses: actions/setup-java@v3
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        
-    - name: Cache Gradle packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.gradle/caches
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
-        restore-keys: ${{ runner.os }}-gradle
-        
-    - name: Run unit tests
-      run: ./gradlew test
-      
-    - name: Upload test results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: test-results
-        path: app/build/reports/tests/
-```
+-   Run all unit tests: `./gradlew test`
+-   Run all instrumented (UI) tests: `./gradlew connectedAndroidTest`
+-   Generate coverage reports: `./gradlew jacocoTestReport`
 
 ## 📈 Test Coverage Goals
 
-- **Unit Tests**: 80%+ code coverage
-- **Integration Tests**: Cover major user flows
-- **UI Tests**: Test critical user interactions
-- **Security Tests**: Cover all input validation paths
-- **Performance Tests**: Validate with realistic data sizes
+The project aims for high coverage across all critical areas:
+-   **Unit Tests**: 80%+ coverage of business logic.
+-   **Integration & UI**: Coverage of all major user journeys.
+-   **Security**: 100% coverage of input validation logic.
 
 ## 🎯 Testing Best Practices
 
-1. **Arrange-Act-Assert Pattern**: Structure tests clearly
-2. **Independent Tests**: Each test should run independently
-3. **Descriptive Names**: Test names should describe expected behavior
-4. **Mock External Dependencies**: Use mocks for MediaStore, file system
-5. **Test Edge Cases**: Include boundary conditions and error scenarios
-6. **Continuous Integration**: Automate test execution on code changes
+1.  **Arrange-Act-Assert**: Maintain a clear structure for every test case.
+2.  **Independence**: Ensure tests do not depend on the state left by previous tests.
+3.  **Descriptive Naming**: Use names that clearly state the expected behavior.
+4.  **Mocking**: Isolate components by mocking external dependencies like the file system or MediaStore.
+5.  **Edge Case Focus**: Prioritize testing boundary conditions and error states.
 
 ## 🔍 Test Review Checklist
 
-- [ ] All public methods are tested
-- [ ] Security validations are covered
-- [ ] Error conditions are handled
-- [ ] Performance requirements are met
-- [ ] UI interactions work correctly
-- [ ] Tests run independently
-- [ ] Test data is properly cleaned up
-- [ ] Documentation is updated
+-   [ ] Are all public methods covered by tests?
+-   [ ] Are security validations thoroughly verified?
+-   [ ] Is the UI responsive during all test scenarios?
+-   [ ] Does the test data cleanup properly after execution?

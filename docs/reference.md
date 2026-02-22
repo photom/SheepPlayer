@@ -2,429 +2,121 @@
 
 Complete technical specification of SheepPlayer classes, methods, and constants.
 
-- **[SOLID Compliance](SOLID_COMPLIANCE.md)** - SOLID principles adherence analysis
+-   **[SOLID Compliance](SOLID_COMPLIANCE.md)** - SOLID principles adherence analysis
 
 ## Classes
 
 ### Data Models
+The core data structure follows a hierarchical Artist → Album → Track model.
 
-#### `Artist`
-
-```kotlin
-data class Artist(
-    val id: Long,
-    val name: String,
-    val albums: MutableList<Album> = mutableListOf()
-)
+```mermaid
+classDiagram
+    class Artist {
+        +Long id
+        +String name
+        +List albums
+    }
+    class Album {
+        +Long id
+        +String title
+        +String artistName
+        +List tracks
+    }
+    class Track {
+        +Long id
+        +String title
+        +String artistName
+        +String albumName
+        +Long duration
+        +String filePath
+        +String albumArtUri
+    }
+    Artist "1" *-- "many" Album
+    Album "1" *-- "many" Track
 ```
 
-**Properties:**
-
-- `id: Long` - MediaStore ID for the artist
-- `name: String` - Artist name
-- `albums: MutableList<Album>` - Collection of albums by this artist
-
-#### `Album`
-
-```kotlin
-data class Album(
-    val id: Long,
-    val title: String,
-    val artistName: String,
-    val tracks: MutableList<Track> = mutableListOf()
-)
-```
-
-**Properties:**
-
-- `id: Long` - MediaStore ID for the album
-- `title: String` - Album title
-- `artistName: String` - Name of the artist who created this album
-- `tracks: MutableList<Track>` - Collection of tracks in this album
-
-#### `Track`
-
-```kotlin
-data class Track(
-    val id: Long,
-    val title: String,
-    val artistName: String,
-    val albumName: String,
-    val duration: Long,
-    val filePath: String,
-    val albumArtUri: String? = null
-)
-```
-
-**Properties:**
-
-- `id: Long` - MediaStore ID for the track
-- `title: String` - Track title
-- `artistName: String` - Name of the performing artist
-- `albumName: String` - Name of the album containing this track
-- `duration: Long` - Track duration in milliseconds
-- `filePath: String` - Full file system path to the audio file
-- `albumArtUri: String?` - Optional URI for album artwork
+-   **Artist**: Contains a unique MediaStore ID, the artist's name, and a collection of their albums.
+-   **Album**: Includes a unique MediaStore ID, the title, the artist's name, and a collection of tracks.
+-   **Track**: Stores the unique MediaStore ID, title, artist and album names, duration in milliseconds, the full file system path, and an optional URI for artwork.
 
 ### Core Classes
 
 #### `MusicPlayer`
-
-Audio playback controller using Android MediaPlayer.
-
-**Constructor:**
-
-- `MusicPlayer(context: Context)`
-
-**Methods:**
-
-##### `loadTrack(track: Track, autoPlay: Boolean = false): Boolean`
-
-Loads track for playback with validation.
-
-- **Parameters:** `track` - Track to load, `autoPlay` - Start playing immediately
-- **Returns:** `true` if successful
-- **Exceptions:** Handled internally
-
-##### `play(): Boolean`
-
-Starts playback of loaded track.
-
-- **Returns:** `true` if successful
-
-##### `pause(): Boolean`
-
-Pauses current playback.
-
-- **Returns:** `true` if successful
-
-##### `stop(): Boolean`
-
-Stops playback and releases resources.
-
-- **Returns:** `true` if successful
-
-##### `isPlaying(): Boolean`
-
-Checks current playback state.
-
-- **Returns:** `true` if currently playing
-
-##### `getCurrentTrack(): Track?`
-
-Gets the currently loaded track.
-
-- **Returns:** Current track or `null`
-
-##### `getCurrentPosition(): Int`
-
-Gets current playback position.
-
-- **Returns:** Position in milliseconds
-
-##### `getDuration(): Int`
-
-Gets duration of current track.
-
-- **Returns:** Duration in milliseconds
-
-##### `seekTo(position: Int)`
-
-Seeks to specific position.
-
-- **Parameters:** `position` - Target position in milliseconds
-
-##### `release()`
-
-Releases all resources.
-
-**Interfaces:**
-
-##### `OnPlaybackStateChangeListener`
-
-Callback interface for playback state changes.
-
-**Methods:**
-
-- `onPlaybackStarted(track: Track)`
-- `onPlaybackPaused(track: Track)`
-- `onPlaybackStopped()`
-- `onPlaybackError(track: Track, error: String)`
-- `onPlaybackCompleted(track: Track)`
+The primary audio playback controller utilizing the Android `MediaPlayer` engine. It handles track loading with built-in security validation, transport controls (play, pause, stop, seek), and resource management.
 
 #### `MusicPlayerManager`
-
-MusicPlayer wrapper with state management.
-
-**Constructor:**
-
-- `MusicPlayerManager(musicPlayer: MusicPlayer)`
-
-**Properties:**
-
-- `currentPlayingTrack: Track?` - Currently playing track (read-only)
-- `isPlaying: Boolean` - Current playback state (read-only)
-
-**Methods:**
-
-##### `playTrack(track: Track)`
-
-Starts playing specified track.
-
-##### `togglePlayback(): Boolean`
-
-Toggles between play and pause.
-
-- **Returns:** `true` if action succeeded
-
-##### `syncPlaybackState()`
-
-Synchronizes internal state with MediaPlayer.
-
-##### `setOnPlaybackStateChangeListener(listener: () -> Unit)`
-
-Sets callback for state changes.
-
-##### `release()`
-
-Releases resources.
+A high-level wrapper for the `MusicPlayer` that manages application state, synchronizes the UI, and provides callback interfaces for playback event changes.
 
 #### `MusicRepository`
-
-Music data access from MediaStore.
-
-**Constructor:**
-
-- `MusicRepository(context: Context)`
-
-**Methods:**
-
-##### `suspend fun loadMusicData(): List<Artist>`
-
-Loads music data from device.
-
-- **Returns:** List of artists with albums and tracks
-- **Exceptions:** MediaStore access errors
+Handles data access by querying the Android `MediaStore`. It is responsible for loading, sanitizing, and structuring media data while enforcing strict security policies on file access.
 
 ### UI Classes
 
 #### `TreeAdapter`
-
-RecyclerView adapter for hierarchical music display.
-
-**Constructor:**
-
-- `TreeAdapter(onTrackClick: (Track) -> Unit, onTrackSwipe: (Track) -> Unit)`
-
-**Methods:**
-
-##### `submitList(newItems: List<TreeItem>)`
-
-Updates adapter with new data.
-
-##### `getItem(position: Int): TreeItem?`
-
-Gets item at position.
-
-- **Returns:** TreeItem or `null` if invalid position
-
-**ViewHolder Classes:**
-
-- `ArtistViewHolder` - Displays artist information
-- `AlbumViewHolder` - Displays album information
-- `TrackViewHolder` - Displays track information
+A specialized RecyclerView adapter designed for hierarchical music browsing. It manages specialized ViewHolders for Artists, Albums, and Tracks, supporting expand/collapse logic and track interactions.
 
 #### `TreeItem` (Sealed Class)
-
-Represents different types of items in the music hierarchy.
-
-**Subclasses:**
-
-- `TreeItem.ArtistItem(artist: Artist, isExpanded: Boolean)`
-- `TreeItem.AlbumItem(album: Album, isExpanded: Boolean)`
-- `TreeItem.TrackItem(track: Track)`
+A formal representation of the different types of items within the music tree, including `ArtistItem`, `AlbumItem`, and `TrackItem`, each holding its respective data and UI state.
 
 ### Fragment Classes
 
 #### `MainActivity`
-
-Main application activity.
-
-**Properties:**
-
-- `allArtists: MutableList<Artist>` - Music collection
-- `currentPlayingTrack: Track?` - Current track
-- `isPlaying: Boolean` - Playback state
-
-**Methods:**
-
-##### `playTrack(track: Track)`
-
-Starts playing track, switches to playing tab.
-
-##### `togglePlayback(): Boolean`
-
-Toggles play/pause state.
-
-##### `stopPlayback()`
-
-Stops playback.
-
-##### `switchToPlayingTab()`
-
-Navigates to playing tab.
-
-##### `syncPlaybackState()`
-
-Syncs state with player.
+The central host for the application's navigation and global state, coordinating data flow between repositories and UI fragments.
 
 #### `PlayingFragment`
-
-Fragment displaying currently playing track.
-
-**Methods:**
-
-##### `onPlaybackStateChanged()`
-
-Called when playback state changes.
+A dedicated screen for displaying the currently active track's details, artwork, and playback controls.
 
 #### `TracksFragment`
-
-Fragment displaying music library in tree view.
-
-**Methods:**
-
-##### `onMusicDataLoaded()`
-
-Called when music data loading completes.
+Displays the music library in a searchable, hierarchical tree view.
 
 ### Utility Classes
 
 #### `TimeUtils`
-
-Time formatting utilities.
-
-**Methods:**
-
-##### `formatDuration(durationMs: Long): String`
-
-Formats milliseconds to MM:SS or H:MM:SS format.
-
-- **Parameters:** `durationMs` - Duration in milliseconds
-- **Returns:** Formatted string (e.g., "3:45" or "1:23:45" for tracks ≥ 1 hour)
+Provides static helpers for converting raw durations into human-readable time strings (e.g., "MM:SS").
 
 #### `Constants`
-
-Application constants.
-
-**Objects:**
-
-- `ViewTypes` - RecyclerView view type constants
-- `MediaStore` - MediaStore-related constants
-- `UI` - UI string constants
+A centralized repository for view types, system metadata strings, and UI-specific identifiers.
 
 ## Permissions
 
 ### Required Permissions
+The application requires the following permissions to function correctly:
 
-```xml
-<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-```
+-   **Audio Access (API 33+)**: `READ_MEDIA_AUDIO` for accessing music files on modern Android versions.
+-   **Legacy Storage Access**: `READ_EXTERNAL_STORAGE` for compatibility with older devices (up to API 32).
+-   **Playback Stability**: `WAKE_LOCK` to ensure continuous audio playback when the device screen is off.
 
 ## MediaStore Queries
 
-### Audio Files Query
+### Audio Discovery Process
+The application queries the Android `MediaStore` to discover local audio files. This process involves:
 
-```kotlin
-val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-    MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-} else {
-    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-}
-
-val projection = arrayOf(
-    MediaStore.Audio.Media._ID,
-    MediaStore.Audio.Media.TITLE,
-    MediaStore.Audio.Media.ARTIST,
-    MediaStore.Audio.Media.ALBUM,
-    MediaStore.Audio.Media.DURATION,
-    MediaStore.Audio.Media.DATA,
-    MediaStore.Audio.Media.ALBUM_ID
-)
-
-val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-```
+1.  **URI Resolution**: Selecting the appropriate external media volume based on the Android version.
+2.  **Projection**: Requesting specific columns including ID, Title, Artist, Album, Duration, File Data, and Album ID.
+3.  **Filtering**: Using a selection filter to include only files explicitly marked as music within the system database.
 
 ## Supported Audio Formats
-
-- MP3 (`.mp3`)
-- M4A (`.m4a`)
-- WAV (`.wav`)
-- FLAC (`.flac`)
-- OGG (`.ogg`)
-- AAC (`.aac`)
+SheepPlayer supports the following standard audio formats:
+-   **MP3** (.mp3)
+-   **M4A** (.m4a)
+-   **WAV** (.wav)
+-   **FLAC** (.flac)
+-   **OGG** (.ogg)
+-   **AAC** (.aac)
 
 ## Security Validations
 
 ### File Path Validation
-
-File paths are validated to prevent:
-
-- Directory traversal attacks (`../`)
-- Access to system files
-- Invalid file extensions
+All file paths are rigorously validated to prevent directory traversal attacks (detecting `../` segments), blocking access to sensitive system files, and ensuring only whitelisted extensions are processed.
 
 ### Input Sanitization
+Data retrieved from system APIs is never trusted implicitly. All strings are checked for null values and replaced with defaults where necessary, and all file paths are re-validated immediately before any playback attempt.
 
-All MediaStore data is sanitized:
+## Error Codes & States
 
-- Null values replaced with defaults
-- File paths validated before use
-- Extensions checked against whitelist
+-   **MusicPlayer Errors**: Covers invalid file paths, IO exceptions during loading, and general engine failures.
+-   **Permission States**: Tracks whether the user has granted or denied necessary media access, providing feedback for either state.
 
-## Error Codes
+## View Identifiers
 
-### MusicPlayer Errors
-
-- `"Invalid file path"` - File path failed security validation
-- `"Failed to load track"` - IOException during file access
-- `"Unexpected error"` - General exception during loading
-
-### Permission Errors
-
-- `PERMISSION_DENIED` - User denied media access permission
-- `PERMISSION_GRANTED` - User granted media access permission
-
-## View IDs
-
-### Activity Main
-
-- `@+id/nav_view` - Bottom navigation
-- `@+id/nav_host_fragment_activity_main` - Navigation host
-
-### Fragment Playing
-
-- `@+id/albumArtLarge` - Large album artwork
-- `@+id/trackTitle` - Track title text
-- `@+id/artistName` - Artist name text
-- `@+id/albumName` - Album name text
-- `@+id/duration` - Duration text
-- `@+id/playStopButton` - Play/stop button
-- `@+id/noTrackMessage` - No track loaded message
-
-### Fragment Tracks
-
-- `@+id/recyclerViewTracks` - Music library RecyclerView
-
-### Item Layouts
-
-- `@+id/artistName` - Artist name (item_artist)
-- `@+id/albumCount` - Album count (item_artist)
-- `@+id/expandIcon` - Expand/collapse icon
-- `@+id/albumTitle` - Album title (item_album)
-- `@+id/trackCount` - Track count (item_album)
-- `@+id/albumArt` - Album artwork (item_album)
-- `@+id/trackTitle` - Track title (item_track_tree)
-- `@+id/duration` - Track duration (item_track_tree)
+The application uses standard resource IDs to link code logic with XML layouts for the main activity, functional fragments (Playing, Tracks), and individual list items for the music hierarchy.

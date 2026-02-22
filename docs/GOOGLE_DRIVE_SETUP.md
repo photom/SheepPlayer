@@ -2,8 +2,7 @@
 
 ## Overview
 
-The SheepPlayer app includes Google Drive integration to load and play music files directly from
-Google Drive. However, this requires proper Google API configuration.
+The SheepPlayer app includes Google Drive integration to load and play music files directly from Google Drive. However, this requires proper Google API configuration.
 
 ## Setup Requirements
 
@@ -11,66 +10,44 @@ Google Drive. However, this requires proper Google API configuration.
 
 1. **Create a Google Cloud Project**:
     - Go to [Google Cloud Console](https://console.cloud.google.com/)
-    - Create a new project or select an existing one
-    - Enable the following APIs:
-        - Google Drive API
-        - Google Sign-In API
+    - Create a new project or select an existing one.
+    - Enable the following APIs: **Google Drive API** and **Google Sign-In API**.
 
 2. **Configure OAuth 2.0**:
-    - Go to "Credentials" in the Google Cloud Console
-    - Create OAuth 2.0 Client IDs for Android
-    - Add your app's SHA-1 fingerprints (see below)
+    - Go to "Credentials" in the Google Cloud Console.
+    - Create OAuth 2.0 Client IDs for Android.
+    - Add your app's SHA-1 fingerprints (see below).
 
 ### 2. Get SHA-1 Fingerprints
 
-Run these commands in your project directory:
+Run the following procedures in your project directory:
 
-```bash
-# For debug builds
-keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
-
-# For release builds (if you have a release keystore)
-keytool -list -v -keystore /path/to/your/release.keystore -alias your_alias_name
-```
+-   **For Debug Builds**: Use the `keytool` utility to list the contents of your local `debug.keystore`, typically found in the `.android` directory of your user home. The default alias is `androiddebugkey` and the default password is `android`.
+-   **For Release Builds**: If you have a production keystore, use the `keytool` utility with your specific keystore path and alias to retrieve the SHA-1 fingerprint.
 
 ### 3. Configure Firebase (Recommended)
 
 1. **Create Firebase Project**:
     - Go to [Firebase Console](https://console.firebase.google.com/)
-    - Create a new project or use existing Google Cloud project
-    - Add Android app with package name: `com.hitsuji.sheepplayer`
+    - Create a new project or use an existing Google Cloud project.
+    - Add an Android app with the package name: `com.hitsuji.sheepplayer`
 
 2. **Add SHA-1 Fingerprints**:
-    - In Firebase Console, go to Project Settings
-    - Add SHA-1 fingerprints from step 2
+    - In the Firebase Console, navigate to Project Settings.
+    - Add the SHA-1 fingerprints retrieved in the previous step.
 
 3. **Download Configuration**:
-    - Download `google-services.json`
-    - Place it in `app/` directory
+    - Download the `google-services.json` file.
+    - Place it in the `app/` directory of your project.
 
 ### 4. Add Google Services Plugin
 
-Add to `build.gradle.kts` (Module: app):
-
-```kotlin
-plugins {
-    // ... existing plugins
-    id("com.google.gms.google-services")
-}
-```
-
-Add to `build.gradle.kts` (Project level):
-
-```kotlin
-plugins {
-    // ... existing plugins
-    id("com.google.gms.google-services") version "4.4.0" apply false
-}
-```
+1. **Module Level**: Add the Google Services plugin ID to your application's `build.gradle.kts` file within the `plugins` block.
+2. **Project Level**: Add the Google Services plugin to your project-level `build.gradle.kts` file, specifying the appropriate version (e.g., "4.4.0") and setting `apply` to `false`.
 
 ## Current Status
 
-The app currently includes:
+The application currently includes:
 
 - ✅ Google Drive API dependencies
 - ✅ Google Sign-In integration
@@ -80,57 +57,37 @@ The app currently includes:
 - ✅ SQLite metadata caching system
 - ✅ Authentication flow with menu integration
 - ✅ Progress tracking and user feedback
-- ❌ `google-services.json` configuration file
-- ❌ SHA-1 fingerprint registration
+- ❌ `google-services.json` configuration file (Must be added manually)
+- ❌ SHA-1 fingerprint registration (Must be completed in the console)
 
 ## Error Messages
 
-If you see these errors:
-
-- `"Sign in cancelled or failed"` - Missing Google services configuration
-- `"GoogleSignIn not properly configured"` - Need `google-services.json`
-- Authentication failures - Check SHA-1 fingerprints
+-   **"Sign in cancelled or failed"**: Usually indicates a missing or incorrect Google services configuration.
+-   **"GoogleSignIn not properly configured"**: Typically means the `google-services.json` file is missing.
+-   **Authentication failures**: Double-check that your SHA-1 fingerprints are correctly registered in the Firebase or Google Cloud console.
 
 ## Manual Testing (Alternative)
 
-If you don't want to set up Google services right now, you can:
-
-1. Comment out Google Drive functionality
-2. Use only local music files
-3. The app will work normally for local storage music
+If you prefer not to set up Google services at this time, you can:
+1.  Disable or comment out the Google Drive initialization logic.
+2.  Rely solely on local music files; the app will function normally for local storage music.
 
 ## File Structure
 
-```
-app/
-├── src/main/java/.../service/
-│   ├── GoogleDriveService.kt                # Google Drive integration
-│   ├── GoogleDriveRepository.kt             # Google Drive data operations  
-│   ├── GoogleDriveFileDiscovery.kt          # File discovery service
-│   ├── GoogleDriveMetadataService.kt        # Metadata extraction
-│   ├── MetadataLoadingService.kt            # Background loading service
-│   ├── MetadataCache.kt                     # Caching system
-│   ├── MetadataCacheDbHelper.kt             # SQLite database
-│   ├── MusicMetadataExtractor.kt            # Music file metadata
-│   └── auth/
-│       └── GoogleDriveAuthenticator.kt      # Authentication logic
-├── src/main/java/.../ui/menu/
-│   ├── MenuFragment.kt                      # Settings UI
-│   └── MenuViewModel.kt                     # Settings logic
-├── google-services.json                     # ❌ MISSING - Need to add
-└── build.gradle.kts                         # Dependencies configured ✅
-```
+The Google Drive and authentication components are organized as follows:
+
+-   **Service Layer**: Contains `GoogleDriveService`, `GoogleDriveRepository`, `GoogleDriveFileDiscovery`, `GoogleDriveMetadataService`, `MetadataLoadingService`, `MetadataCache`, `MetadataCacheDbHelper`, and `MusicMetadataExtractor`.
+-   **Authentication Logic**: Located in the `auth/` subdirectory as `GoogleDriveAuthenticator`.
+-   **UI & Logic**: Found in the `ui/menu/` directory, including `MenuFragment` and `MenuViewModel`.
+-   **Configuration**: Requires the `google-services.json` file in the project root.
 
 ## Troubleshooting
 
-1. **Check Logs**: Look for "GoogleDriveService" logs in Android Studio
-2. **Verify Package Name**: Must match `com.hitsuji.sheepplayer`
-3. **Check SHA-1**: Ensure fingerprints are added to Firebase/Google Console
-4. **Restart App**: After adding `google-services.json`, clean and rebuild
+1.  **Check Logs**: Monitor "GoogleDriveService" logs in Android Studio for detailed error reports.
+2.  **Verify Package Name**: Ensure the package name exactly matches `com.hitsuji.sheepplayer`.
+3.  **Check SHA-1**: Confirm that the fingerprints in the console match those from your build environment.
+4.  **Restart App**: After making configuration changes, perform a clean build and restart the application.
 
 ## Support
 
-For Google Sign-In issues, refer to:
-
-- [Google Sign-In Android Documentation](https://developers.google.com/identity/sign-in/android)
-- [Firebase Authentication Setup](https://firebase.google.com/docs/auth/android/google-signin)
+For issues specifically related to Google Sign-In or Firebase Authentication, consult the official Google Identity and Firebase documentation.
