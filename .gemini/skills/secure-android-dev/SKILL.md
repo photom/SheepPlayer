@@ -65,6 +65,8 @@ This skill provides procedural knowledge for implementing and maintaining a secu
 -   [ ] **M7: Client Code Quality**: Have we sanitized all inputs to prevent injection/traversal?
 
 ## References
+-   See the `architectural-design` skill for visualizing secure data flows and component boundaries.
+-   See the `ddd-clean-architecture` skill for implementing secure patterns within a clean layered structure.
 -   See `docs/reference/test-plans/security.md` for specific security test cases.
 -   Android Developers Security Best Practices: [https://developer.android.com/topic/security/best-practices](https://developer.android.com/topic/security/best-practices)
 -   OWASP Mobile Top 10: [https://owasp.org/www-project-mobile-top-10/](https://owasp.org/www-project-mobile-top-10/)

@@ -73,5 +73,6 @@ This skill provides procedural knowledge for implementing and maintaining a robu
 4.  Write a pure Unit Test for the Use Case.
 
 ## References
+-   See the `architectural-design` skill for guidance on visualizing these patterns using Mermaid diagrams.
 -   See `docs/reference/project-structure.md` for current directory mappings.
 -   See `docs/explanation/solid-compliance.md` for specific implementation examples.

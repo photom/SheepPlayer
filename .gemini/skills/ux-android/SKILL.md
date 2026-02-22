@@ -60,6 +60,8 @@ This skill provides procedural knowledge for designing and implementing high-qua
 -   [ ] **Edge-to-Edge**: Is the app content flowing behind the status bar?
 
 ## References
+-   See the `architectural-design` skill for modeling user interactions and UI state transitions via Mermaid.
+-   See the `ddd-clean-architecture` skill for connecting UI components to a robust domain model.
 -   Material Design 3 Guidelines: [https://m3.material.io/](https://m3.material.io/)
 -   Android Accessibility Guide: [https://developer.android.com/guide/topics/ui/accessibility](https://developer.android.com/guide/topics/ui/accessibility)
 -   Android Performance: [https://developer.android.com/topic/performance](https://developer.android.com/topic/performance)

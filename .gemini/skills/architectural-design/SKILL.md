@@ -57,6 +57,7 @@ This skill provides procedural knowledge for designing and documenting software 
 -   **SOLID Compliance**: Visualize how DIP is achieved through interface-based relationships in class diagrams.
 
 ## References
+-   See the `ddd-clean-architecture` skill for detailed implementation guidance on domain-driven structures.
 -   See `docs/reference/project-structure.md` for current high-level architectural overview.
 -   See `docs/explanation/solid-compliance.md` for how current design patterns are applied.
 -   Visit [https://mermaid.js.org/](https://mermaid.js.org/) for official Mermaid diagram documentation.
