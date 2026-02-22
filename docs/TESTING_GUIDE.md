@@ -51,10 +51,11 @@ Focuses on data mapping and security validation.
 ## 🖥️ 3. Presentation Layer Testing (State & UI)
 Focuses on UI logic and user interaction.
 
--   **ViewModel State**: Test that `LibraryViewModel` emits a `Loading` state followed by a `Success` state when the library Use Case returns data.
+-   **ViewModel State**: Test that `LibraryViewModel` and `ArtistGalleryViewModel` correctly emit a `Loading` state before progressing to `Success` or `Error`.
 -   **UI Logic**: Test the formatting logic in `TimeUtils` (e.g., converting 90,000ms to "1:30").
 -   **Espresso UI Tests**:
     -   Verify that the "No track selected" message appears on first launch.
+    -   Verify that the appropriate loading spinner or animated placeholder appears while a ViewModel is in the `Loading` state.
     -   Test the swipe-to-play gesture on a track item and confirm navigation to the "Playing" tab.
     -   Verify the tab switching behavior and persistence of the expanded artist state.
 

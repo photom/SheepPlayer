@@ -64,8 +64,9 @@ stateDiagram-v2
 
 ### 3. Pictures Fragment (Artist Discovery)
 A visually immersive experience that dynamically fetches artist-related imagery.
+-   **Loading Icons**: An animated "Sheep" placeholder (GIF) serves as a primary loading indicator, providing immediate feedback while the `ArtistGalleryViewModel` searches and downloads imagery.
 -   **Secure Loading**: Every image is validated against magic numbers (JPEG, PNG, etc.) to ensure system integrity.
--   **Placeholder States**: An animated "Sheep" placeholder provides feedback during search and download operations.
+-   **Placeholder States**: The animated placeholder remains active at the end of the image list until the current search operation is complete.
 
 ## 🛠️ Feature Specifications
 
@@ -77,7 +78,8 @@ Managed by a dedicated service to ensure persistence across Activity recreations
 
 ### 📁 Data & Library Management
 -   **Domain-Driven Discovery**: Uses the `ScanLibraryUseCase` to query the `MusicRepository` (abstracting MediaStore and Google Drive).
--   **Background Sync**: Metadata extraction from cloud sources runs as a background job to prevent UI stutters.
+-   **Playlist Synchronization**: When a user updates or syncs a playlist, a **loading spinner** is displayed in the UI to signify the background persistence operation.
+-   **Background Sync**: Metadata extraction from cloud sources runs as a background job to prevent UI stutters. A persistent progress indicator in the library view signals an active synchronization.
 -   **Sanitization**: All metadata and file paths are sanitized to prevent injection or directory traversal attacks.
 
 ### 🔐 Security Features

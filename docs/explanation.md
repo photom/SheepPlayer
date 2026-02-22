@@ -77,3 +77,11 @@ Data in SheepPlayer follows a strict, unidirectional path:
 4.  **Repository Impl**: Fetches data and returns Domain Entities.
 5.  **ViewModel State**: The Entities are mapped to a UI State and emitted to the UI.
 6.  **UI Render**: The Fragment observes the state and updates the view.
+
+## ⌛ User Feedback & Background Operations
+
+In a music player, many operations occur in the background to ensure a smooth UI. SheepPlayer prioritizes user feedback during these asynchronous tasks:
+
+-   **Asynchronous Processing**: Tasks like metadata scanning and image retrieval are offloaded to background threads.
+-   **Explicit State Signaling**: ViewModels explicitly transition to a `Loading` state. This state is interpreted by the UI layer to display appropriate loading icons or spinners.
+-   **Contextual Feedback**: Instead of generic progress bars, SheepPlayer uses contextual indicators, such as an animated "Sheep" for image discovery, making the wait time feel more integrated into the app's personality.

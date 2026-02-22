@@ -56,9 +56,9 @@ Adapts the domain requirements to specific technical frameworks and storage mech
 Handles user interaction and renders the current state of the Domain.
 
 ### 🎮 ViewModels
--   **`LibraryViewModel`**: Manages the UI state for the music explorer (Tracks tab).
+-   **`LibraryViewModel`**: Manages the UI state for the music explorer (Tracks tab). Emits a **Loading** state during initial scans and playlist updates.
 -   **`PlayerViewModel`**: Orchestrates the UI state for the control center (Playing tab).
--   **`ArtistGalleryViewModel`**: Manages the dynamic loading of artist images (Pictures tab).
+-   **`ArtistGalleryViewModel`**: Manages the dynamic loading of artist images (Pictures tab). Emits a **Loading** state while performing search and retrieval operations, signaled to the user via an animated placeholder.
 
 ### 🎨 UI Components
 -   **`MainActivity`**: The navigation host and controller.
