@@ -1,136 +1,97 @@
-# SOLID Principles Compliance
+# SOLID Principles Compliance (DDD & Clean Architecture)
 
-This document outlines how the SheepPlayer codebase has been refactored to comply with SOLID principles and demonstrates the architectural improvements made.
+This document outlines how the SheepPlayer codebase adheres to SOLID principles through the adoption of **Domain-Driven Design (DDD)** and **Clean Architecture**.
 
-## Overview
-
-The refactoring addressed several SOLID principle violations in the original codebase and introduced a clean architecture that follows industry best practices for maintainable and extensible code.
-
-## SOLID Principles Implementation
+## SOLID Principles in DDD Context
 
 ### 1. Single Responsibility Principle (SRP)
 
-**Problem**: The original `MainActivity` handled too many responsibilities, including permission management, data loading, authentication, navigation, and UI logic.
+**Problem**: Traditional Android architectures often burden `MainActivity` or ViewModels with business logic, data fetching, and UI rendering.
 
-**Solution**: The logic was extracted into specialized handler classes, each focused on a single responsibility:
+**DDD Solution**:
+-   **Use Cases**: Each Use Case encapsulates a single business rule or user interaction (e.g., `PlayMusicUseCase`, `LoadLibraryUseCase`).
+-   **Repositories**: Focus solely on data abstraction (fetching/saving entities).
+-   **Entities**: Represent domain concepts (`Artist`, `Track`) with intrinsic behavior, separate from persistence concerns.
 
-- **`PermissionHandler`**: Manages permission requests and callbacks.
-- **`GoogleDriveAuthHandler`**: Handles the Google Drive authentication flow.
-- **`MusicDataHandler`**: Orchestrates music data loading from various sources.
+**Benefit**: Changes to business rules (e.g., "play only if duration > 30s") affect only one Use Case, leaving the UI and Data layers untouched.
 
 ### 2. Open/Closed Principle (OCP)
 
-**Problem**: Adding new functionality previously required modifying existing core classes.
+**Problem**: Adding new features (e.g., a new music source like Spotify) often requires modifying existing classes.
 
-**Solution**: Extensible base classes and strategy interfaces were introduced:
+**DDD Solution**:
+-   **Polymorphic Repositories**: The Domain layer defines a `MusicRepository` interface.
+-   **Strategy Pattern**: Use Cases depend on abstractions. New data sources (e.g., `CloudMusicRepositoryImpl`) can be added without changing the Use Cases or the UI.
+-   **Extensions**: Functionality can be extended via Decorators or new implementations of existing interfaces.
 
-- **`BaseTreeAdapter`**: Uses the template method pattern to allow customization of adapter behavior without modifying the base class.
-- **`TreeDataFilter` Strategy**: Allows new filtering and sorting algorithms to be added by implementing an interface.
+**Benefit**: The core domain logic is closed for modification but open for extension through new implementations.
 
 ### 3. Liskov Substitution Principle (LSP)
 
-**Problem**: Components were tightly coupled to specific, concrete implementations.
+**Problem**: Tightly coupled components make it hard to swap implementations (e.g., replacing a real database with a mock for testing).
 
-**Solution**: The system now depends on interfaces. Any implementation of an interface (e.g., a real player or a mock player for testing) can be substituted without affecting the system's behavior. Examples include the `MusicPlayerInterface`, `MusicRepositoryInterface`, and `GoogleDriveServiceInterface`.
+**DDD Solution**:
+-   **Interface Contracts**: All dependencies (Repositories, Services) are defined by interfaces in the Domain layer.
+-   **Consistent Behavior**: Any implementation of `MusicRepository` (Local, Remote, Mock) adheres to the same contract, ensuring the system behaves predictably regardless of the underlying data source.
+
+**Benefit**: Seamlessly swap production components for test doubles without breaking the application.
 
 ### 4. Interface Segregation Principle (ISP)
 
-**Problem**: Large, monolithic interfaces forced classes to implement methods they didn't need.
+**Problem**: Large "God Interfaces" force classes to implement methods they don't use.
 
-**Solution**: Interfaces were split into small, cohesive units focused on specific needs:
+**DDD Solution**:
+-   **Focused Use Cases**: Instead of a monolithic `MusicManager`, we have specific Use Cases like `GetLibrary`, `PlayTrack`, `PauseTrack`.
+-   **Granular Repositories**: Separate interfaces for distinct domains (e.g., `AuthRepository` vs. `MusicRepository`).
 
-- **`NavigationController`**: Handles only tab switching logic.
-- **`FragmentNotifier`**: Dedicated to data and state change notifications.
-- **`PlaybackStateListener`**: Specifically for monitoring playback events like start, stop, and error.
+**Benefit**: Components depend only on the specific methods relevant to their function.
 
 ### 5. Dependency Inversion Principle (DIP)
 
-**Problem**: High-level modules were directly dependent on low-level implementation details.
+**Problem**: High-level modules (Business Logic) depending on low-level modules (Database, Network API).
 
-**Solution**: Abstractions were introduced to decouple the layers. High-level components like activities now depend on interfaces, and the concrete implementations are provided through a factory.
+**DDD Solution**:
+-   **Inverted Dependencies**: The Domain layer (High-level) defines interfaces. The Data layer (Low-level) implements them.
+-   **Dependency Injection**: Dependencies are injected at runtime, ensuring the Domain layer remains pure and unaware of infrastructure details.
 
-- **`DependencyFactory`**: Centralizes the creation and injection of dependencies, allowing for easy swapping of implementations and improved testability.
+**Benefit**: The core business logic is completely decoupled from frameworks, databases, and UI, making it robust and testable.
 
 ## Architectural Improvements
 
 ### Clean Architecture Layers
 
 ```mermaid
-graph LR
-    subgraph Presentation
-        UI[Activities/Fragments]
-        VM[ViewModels]
+graph TD
+    subgraph Infrastructure ["Infrastructure (Frameworks/Drivers)"]
+        UI[UI/Frameworks]
+        DB[Database/Network]
     end
-    subgraph BusinessLogic
-        Handlers[Handlers/Managers]
+    subgraph InterfaceAdapters ["Interface Adapters"]
+        Controllers[Controllers/Presenters]
+        Gateways[Gateways/Repositories]
     end
-    subgraph Data
-        Repo[Repositories/Services]
+    subgraph ApplicationBusinessRules ["Application Business Rules"]
+        UseCases[Use Cases]
     end
-    subgraph Infrastructure
-        Infra[Interfaces/Factories]
+    subgraph EnterpriseBusinessRules ["Enterprise Business Rules"]
+        Entities[Entities]
     end
 
-    UI --> Handlers
-    Handlers --> Repo
-    Repo --> Infra
+    Infrastructure --> InterfaceAdapters
+    InterfaceAdapters --> ApplicationBusinessRules
+    ApplicationBusinessRules --> EnterpriseBusinessRules
 ```
 
 ### Design Patterns Used
 
-1.  **Factory Pattern**: Used in `DependencyFactory` for decoupled object creation.
-2.  **Strategy Pattern**: Applied to `TreeDataFilter` for flexible data processing.
-3.  **Observer Pattern**: Implemented via callback interfaces for event handling.
-4.  **Template Method Pattern**: Used in `BaseTreeAdapter` to support UI extensions.
-5.  **Repository Pattern**: Standardizes data access across local and cloud sources.
-
-## Migration Path
-
-### Phase 1: Interface Introduction
-Abstractions were defined for all major components, and existing classes were updated to implement them.
-
-### Phase 2: Refactored Components
-New, SOLID-compliant versions of the main activity, playback manager, and handlers were created.
-
-### Phase 3: Gradual Migration
-The system recommends a step-by-step replacement of legacy components with the new refactored versions to ensure stability.
+1.  **Repository Pattern**: Mediates between the Domain and Data mapping layers using a collection-like interface for accessing domain objects.
+2.  **UseCase (Interactor) Pattern**: Encapsulates application-specific business rules.
+3.  **Dependency Injection**: Facilitates loose coupling and testability.
+4.  **Mapper Pattern**: Transforms data between layers (e.g., Database Model -> Domain Entity -> UI Model).
 
 ## Benefits Achieved
 
--   **Maintainability**: Small, focused classes are easier to understand and modify.
--   **Testability**: Interface-based design allows for easy mocking in unit tests.
--   **Extensibility**: New features can be added with minimal impact on existing code.
--   **Code Quality**: Reduced coupling and higher cohesion lead to a more robust system.
-
-## Architectural Design Pattern
-
-The following diagram illustrates how the refactored components interact through a centralized factory and interfaces.
-
-```mermaid
-classDiagram
-    class MainActivity {
-        -MusicPlayerInterface player
-        -MusicRepositoryInterface repo
-    }
-    class DependencyFactory {
-        +createCoreDependencies()
-    }
-    class MusicPlayerInterface {
-        <<interface>>
-        +loadTrack()
-        +play()
-    }
-    class MusicPlayer {
-        +loadTrack()
-        +play()
-    }
-    
-    MainActivity ..> DependencyFactory : uses
-    MainActivity --> MusicPlayerInterface : depends on
-    MusicPlayer ..|> MusicPlayerInterface : implements
-    DependencyFactory ..> MusicPlayer : creates
-```
-
-## Future Improvements
-
-Potential future enhancements include adopting a formal Dependency Injection framework like Hilt, implementing more granular event systems, and using state patterns for complex player logic.
+-   **Testability**: Domain logic can be unit-tested in isolation (pure Kotlin).
+-   **Maintainability**: Clear separation of concerns makes the codebase easier to understand and modify.
+-   **Flexibility**: The UI and Data layers can evolve independently of the core business logic.
+-   **Scalability**: New features can be added as new Use Cases and Entities without cluttering existing code.

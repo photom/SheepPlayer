@@ -1,92 +1,91 @@
-# UI and Feature Specification
+# UI and Feature Specification (Android Music Player)
 
-User interface design and feature specification for SheepPlayer Android music player.
+This document specifies the user interface and functional requirements for SheepPlayer, a modern Android music player built on DDD and Clean Architecture.
 
-## Application Overview
+## 📱 User Experience Principles
 
-SheepPlayer is a local music player that organizes audio files in a hierarchical structure. Users browse their music library by artists and albums, then play tracks using swipe gestures.
+-   **Uninterrupted Playback**: Music should continue playing during navigation and while the app is in the background.
+-   **Low Latency**: Interactions like Play/Pause and Seek must feel instantaneous.
+-   **Visual Context**: The UI should reflect the current playback state and track metadata at all times.
+-   **Security by Design**: Secure handling of local media, cloud files, and downloaded artist imagery.
 
-## User Interface Specification
+## 🧭 Navigation & Information Architecture
 
-### Navigation Structure
-
-The application follows a simple, three-tab navigation model.
+The application uses a standard three-tab bottom navigation model, optimized for single-handed use.
 
 ```mermaid
-flowchart TD
-    App[SheepPlayer] --> Nav[Bottom Navigation]
-    Nav --> Tracks[Tracks Tab - Library Browser]
-    Nav --> Playing[Playing Tab - Controls & Info]
-    Nav --> Pictures[Pictures Tab - Artist Gallery]
+graph TD
+    subgraph BottomNav ["Bottom Navigation Bar"]
+        T[Tracks - Library Browser]
+        P[Playing - Control Center]
+        G[Pictures - Artist Gallery]
+    end
+
+    T --> T_View[Artist > Album > Track Hierarchy]
+    P --> P_View[Playback Controls & Metadata]
+    G --> G_View[Dynamic Artist Imagery]
+
+    style P stroke:#333,stroke-width:4px
 ```
 
--   **Tracks**: Primary music library browser.
--   **Playing**: Current track display and transport controls.
--   **Pictures**: Artist image gallery with dynamic, secure downloading.
+### 1. Tracks Fragment (Library Browser)
+The primary entry point for browsing the music collection.
+-   **Hierarchical Navigation**: An accordion-style list (Artist → Album → Track) minimizes visual clutter.
+-   **Cloud Integration**: Clear visual indicators (e.g., icons) distinguish local tracks from Google Drive tracks.
+-   **Fast Interaction**: Swiping a track or album to the right triggers the `PlayMusicUseCase` and navigates immediately to the "Playing" tab.
 
-### Screen Layouts
-
-#### Tracks Fragment
-The primary view is a scrollable, hierarchical list.
--   **Artist Items**: Displays name and album count with an expand/collapse indicator.
--   **Album Items**: Displays artwork, title, and track count.
--   **Track Items**: Displays title and duration.
--   **Interactions**: Tapping artists or albums toggles their expansion state. Swiping a track to the right immediately starts playback and navigates the user to the Playing tab.
-
-#### Playing Fragment
-The interface dynamically adapts based on whether a track is currently active.
+### 2. Playing Fragment (Playback Control Center)
+The central hub for managing the current audio session.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> NoTrack
-    NoTrack --> Playing : User Swipes Track
-    Playing --> Stopped : User Clicks Stop
-    Stopped --> Playing : User Clicks Play
-    Playing --> NoTrack : App Reset
+    state "Playback Status" as Status {
+        [*] --> Idle : App Launch
+        Idle --> Buffering : Load Track
+        Buffering --> Playing : OnPrepared
+        Playing --> Paused : User Pause / Audio Focus Loss
+        Paused --> Playing : User Resume
+        Playing --> Stopped : User Stop / Completion
+        Stopped --> Idle
+    }
+
+    state "User Actions" as Actions {
+        Play --> Playing
+        Pause --> Paused
+        Seek --> Status
+        Next/Prev --> Status
+    }
 ```
 
--   **No Track Selected**: Displays a centered message and instructions.
--   **Track Playing**: Features large album artwork, detailed track metadata, and a persistent time display (MM:SS / MM:SS).
--   **Transport Control**: A single, large circular button toggles between "Play" and "Stop" states.
+-   **Dynamic Metadata**: Large album artwork, track title, artist, and album name.
+-   **Progress Control**: A seek bar (future) or position indicator showing current time vs. total duration.
+-   **Transport Controls**: Large, accessible buttons for Play/Stop (and future Pause/Skip).
+-   **Album Context**: A scrollable sub-list showing all tracks in the current album, highlighting the active one.
 
-#### Pictures Fragment
-Provides a visual exploration experience synchronized with the current artist.
--   **Animated Feedback**: A searching placeholder appears while images are being discovered.
--   **Secure Discovery**: The service queries multiple engines and validates file signatures (magic numbers) before display.
--   **Gallery View**: A vertical list of high-quality, validated artist images.
+### 3. Pictures Fragment (Artist Discovery)
+A visually immersive experience that dynamically fetches artist-related imagery.
+-   **Secure Loading**: Every image is validated against magic numbers (JPEG, PNG, etc.) to ensure system integrity.
+-   **Placeholder States**: An animated "Sheep" placeholder provides feedback during search and download operations.
 
-### Visual Design
--   **Color Scheme**: Utilizes purple branding tones with teal interactive accents on standard Material Design surfaces.
--   **Typography**: Implements a clear visual hierarchy with artist names being the most prominent, followed by albums and tracks.
--   **Accessibility**: Ensures all touch targets are at least 48dp and provides high contrast for readability.
+## 🛠️ Feature Specifications
 
-## Feature Specifications
+### 🔊 Audio Engine & Lifecycle
+Managed by a dedicated service to ensure persistence across Activity recreations.
+-   **Audio Focus**: Properly handles "ducking" (lowering volume for notifications) and pausing for phone calls.
+-   **System Integration**: (Future) Media Session integration for lock screen and notification shade controls.
+-   **Format Support**: Comprehensive support for MP3, M4A, WAV, FLAC, OGG, and AAC.
 
-### Core Features
+### 📁 Data & Library Management
+-   **Domain-Driven Discovery**: Uses the `ScanLibraryUseCase` to query the `MusicRepository` (abstracting MediaStore and Google Drive).
+-   **Background Sync**: Metadata extraction from cloud sources runs as a background job to prevent UI stutters.
+-   **Sanitization**: All metadata and file paths are sanitized to prevent injection or directory traversal attacks.
 
-#### Google Drive Integration
-Seamlessly merges cloud-based music with the local library.
--   **Authentication**: Secure sign-in/out via the options menu.
--   **Discovery**: Background services crawl folders and extract metadata.
--   **Caching**: Local SQLite storage ensures fast access to previously discovered cloud tracks.
+### 🔐 Security Features
+-   **Path Validation**: All file access requests are validated against a whitelist of supported audio directories.
+-   **Signature Verification**: Downloaded artist images are checked for valid binary signatures before processing.
+-   **Minimal Permissions**: The app adheres to the principle of least privilege, only requesting specific media permissions (API 33+).
 
-#### Music Library Management
--   **Source**: Utilizes the Android MediaStore API for fast, indexed discovery.
--   **Formats**: Supports MP3, M4A, WAV, FLAC, OGG, and AAC.
--   **Organization**: Automatically groups files into a logical Artist → Album → Track structure.
-
-#### Audio Playback
-Managed by the Android `MediaPlayer` with full support for audio focus and system interruption handling (e.g., pausing for incoming calls).
-
-#### Security
--   **File Protection**: Validates every path and extension before use.
--   **Image Integrity**: Performs magic number checks on all downloaded artist images to block malicious content.
-
-### Performance & Accessibility
--   **Efficiency**: Uses coroutines for all background tasks and `RecyclerView` for smooth, low-memory list performance.
--   **Screen Reader Support**: All elements include meaningful content descriptions for talkback compatibility.
--   **Interaction Alternatives**: Provides tap-based alternatives for all gesture-driven actions.
-
-## Future Enhancements
--   **Phase 2**: Adding pause/resume capabilities, shuffle/repeat modes, and real-time library search.
--   **Phase 3**: Implementing a multi-band equalizer, sleep timer, and Android Auto integration.
+## 🔮 Future Enhancements (Music Roadmap)
+1.  **Phase 2: Playback Control**: Implement Seek, Pause, and Previous/Next functionality.
+2.  **Phase 3: Playlists & Search**: Add Use Cases for custom playlist management and real-time global search.
+3.  **Phase 4: System Integration**: Add a persistent Media Notification and lock screen controls via `MediaSessionCompat`.

@@ -1,175 +1,127 @@
-# Reference Documentation
+# Reference Documentation (DDD & Clean Architecture)
 
-This reference provides detailed technical information about SheepPlayer's classes, methods, and APIs. Use this as a lookup resource when working with the codebase.
+This reference provides detailed technical information about SheepPlayer's classes, methods, and APIs, organized by architectural layer.
 
-## 📊 Data Models
+## 🏛️ Domain Layer (`domain/`)
 
-The following class diagram illustrates the relationships and attributes of the core data models in SheepPlayer.
+The core business logic, entities, and repository interfaces. Independent of Android.
 
-```mermaid
-classDiagram
-    class Artist {
-        +Long id
-        +String name
-        +List~Album~ albums
-    }
-    class Album {
-        +Long id
-        +String title
-        +String artistName
-        +List~Track~ tracks
-    }
-    class Track {
-        +Long id
-        +String title
-        +String artistName
-        +String albumName
-        +Long duration
-        +String filePath
-        +String albumArtUri
-        +Int trackNumber
-        +String googleDriveFileId
-        +Boolean isMetadataLoaded
-    }
-    Artist "1" *-- "many" Album
-    Album "1" *-- "many" Track
-```
+### Entities (`domain/model/`)
 
-## 🎵 Music Player Components
+#### `Artist`
+Represents a musical artist in the domain.
+-   `id: Long`: Unique identifier.
+-   `name: String`: Artist's name.
+-   `albums: List<Album>`: Collection of albums by this artist.
 
-### `MusicPlayer`
+#### `Album`
+Represents a musical album.
+-   `id: Long`: Unique identifier.
+-   `title: String`: Album title.
+-   `artistName: String`: Name of the artist.
+-   `tracks: List<Track>`: Ordered list of tracks.
 
-The core component handling audio output, security validation, and cloud integration.
+#### `Track`
+Represents an individual music track.
+-   `id: Long`: Unique identifier.
+-   `title: String`: Track title.
+-   `duration: Long`: Length in milliseconds.
+-   `filePath: String`: Physical file location.
+-   `albumArtUri: String?`: URI for cover art.
 
-#### Core Functionality
-- **Loading**: Validates and prepares tracks for playback.
-- **Transport Controls**: Provides play, pause, stop, and seek operations.
-- **State Queries**: Allows checking the current playback position, duration, and playing status.
-- **Cloud Support**: Integrates with Google Drive for remote file streaming.
-- **Resource Management**: Ensures all media resources are properly released.
+### Repository Interfaces (`domain/repository/`)
 
-#### Security Implementation
-- **Path Validation**: Rejects any file path attempting directory traversal.
-- **Access Verification**: Confirms file existence and readability before attempting playback.
-- **Error Shielding**: Wraps all low-level media operations in comprehensive exception handlers.
+#### `MusicRepository`
+Defines the contract for accessing music data.
+-   `getAllMusic(): List<Artist>`: Retrieves the entire library.
+-   `getArtist(id: Long): Artist?`: Fetches a specific artist.
+-   `search(query: String): List<Track>`: Searches for tracks matching the query.
 
-### `MusicPlayerManager`
+#### `AuthRepository`
+Defines the contract for user authentication (e.g., Google Drive).
+-   `signIn(): Result<User>`
+-   `signOut()`
+-   `getCurrentUser(): User?`
 
-A high-level coordinator that manages the interaction between the UI and the `MusicPlayer`.
+### Use Cases (`domain/usecase/`)
 
-#### Key Responsibilities
-- **Track Selection**: Handles requests to play specific tracks or albums.
-- **State Synchronization**: Keeps the UI and internal player state in sync.
-- **Event Dispatching**: Notifies registered listeners when playback states change (e.g., started, paused, stopped).
+#### `GetMusicLibraryUseCase`
+Orchestrates the retrieval and organization of the music library.
+-   `invoke(): Result<List<Artist>>`: Executes the logic to fetch and sort artists.
 
-## 🖼️ Image Service Layer
+#### `PlayTrackUseCase`
+Handles the business logic for starting playback.
+-   `invoke(track: Track)`: Validates the track and instructs the player to start.
 
-### `ArtistImageService`
+#### `SearchLibraryUseCase`
+Encapsulates search logic.
+-   `invoke(query: String): List<Track>`: Returns matching tracks.
 
-A specialized service for discovering and securely downloading artist imagery.
+## 💾 Data Layer (`data/`)
 
-#### Image Discovery Strategy
-- **Multi-Engine Search**: Simultaneously queries multiple search providers (Google, Bing, DuckDuckGo) for high reliability.
-- **Parallel Processing**: Uses coroutines to perform searches and downloads concurrently.
-- **Redundancy**: Continues searching even if individual engines fail.
+Implementations of domain interfaces and data sources.
 
-#### Security & Validation
-- **Signature Verification**: Validates file "magic numbers" to ensure files are genuine images (JPEG, PNG, GIF, etc.).
-- **Content Filtering**: Automatically rejects non-image files or those smaller than 150x150 pixels.
-- **Secure Networking**: Enforces HTTPS for all remote requests.
+### Repository Implementations (`data/repository/`)
 
-#### Supported Image Formats
+#### `MusicRepositoryImpl`
+Concrete implementation of `MusicRepository`.
+-   **Dependencies**: `LocalMediaDataSource`, `RemoteDriveDataSource`.
+-   **Responsibility**: Coordinates fetching from local and remote sources, mapping results to Domain Entities.
 
-| Format | Validation Strategy | Description |
-| :--- | :--- | :--- |
-| **JPEG** | FF D8 FF | Standard photo format |
-| **PNG** | 89 50 4E 47... | Lossless web graphics |
-| **GIF** | 47 49 46 38 | Animated imagery |
-| **WebP** | RIFF/WEBP | Modern high-compression format |
-| **BMP** | 42 4D | Windows Bitmap |
-| **ICO** | 00 00 01 00 | Windows Icon |
-| **TIFF** | II* / MM* | High-quality tagged format |
+#### `AuthRepositoryImpl`
+Concrete implementation of `AuthRepository`.
+-   **Dependencies**: `GoogleSignInClient`.
+-   **Responsibility**: Wraps Google Sign-In SDK calls.
 
-## 🔄 Service Layer
+### Data Sources (`data/datasource/`)
 
-### `GoogleDriveService`
-Manages the authentication lifecycle (sign-in/sign-out) and provides access to the user's remote music collection.
+#### `LocalMediaDataSource`
+Wrapper around Android `MediaStore`.
+-   `queryAudioFiles(): List<MediaDto>`: Low-level query for audio files.
 
-### `MetadataLoadingService`
-An intensive background service that crawls Google Drive to extract music metadata, broadcasting updates as discovery progresses.
+#### `RemoteDriveDataSource`
+Wrapper around Google Drive API.
+-   `listFiles(): List<DriveFileDto>`: Fetches files from Drive.
 
-### `MetadataCache`
-A persistence layer that stores remote file metadata locally to improve application launch speed and reduce network usage.
+### Mappers (`data/mapper/`)
 
-## 📁 Repository Layer
+#### `TrackMapper`
+Converts `MediaDto` (Data Layer) to `Track` (Domain Layer).
+-   `mapToDomain(dto: MediaDto): Track`
 
-### `MusicRepository`
-The primary data access point for local media. It queries the Android `MediaStore`, applies security filters, and organizes raw results into the Artist-Album-Track hierarchy.
+## 🖥️ Presentation Layer (`presentation/`)
 
-## 🎨 UI Components
+UI components and state holders.
 
-### `TreeAdapter`
-A complex RecyclerView adapter that renders the hierarchical music library. It uses specialized view holders for Artists, Albums, and Tracks, supporting both expansion logic and swipe-to-play gestures.
+### ViewModels (`presentation/viewmodel/`)
 
-### `TreeItem` Hierarchy
-Represented as a sealed structure with three variants:
-1.  **ArtistItem**: Contains artist data and its current expansion state.
-2.  **AlbumItem**: Contains album data and its current expansion state.
-3.  **TrackItem**: Contains individual track data.
+#### `LibraryViewModel`
+State holder for the library screen.
+-   **Dependencies**: `GetMusicLibraryUseCase`.
+-   **State**: `LibraryUiState` (Loading, Success, Error).
+-   `loadLibrary()`: Triggers the Use Case.
 
-## 🛠️ Utility Classes
+#### `PlayerViewModel`
+State holder for the player screen.
+-   **Dependencies**: `PlayTrackUseCase`, `ControlPlaybackUseCase`.
+-   **State**: `PlayerUiState` (Playing, Paused, TrackInfo).
+-   `play(track: Track)`: Triggers playback.
 
-### `TimeUtils`
-Provides formatting logic to convert raw millisecond durations into human-readable `MM:SS` strings.
+### UI Components (`presentation/ui/`)
 
-### `Constants`
-A centralized repository for view types, default metadata strings, and UI content descriptions.
+#### `TracksFragment`
+Displays the music library.
+-   **Observes**: `LibraryViewModel.uiState`.
+-   **Adapter**: `TreeAdapter` (renders Domain Entities).
 
-## 🔧 MainActivity API
+#### `PlayingFragment`
+Displays current track info and controls.
+-   **Observes**: `PlayerViewModel.uiState`.
 
-The `MainActivity` acts as the central coordinator for the entire application lifecycle.
+## 📦 Dependency Injection (`di/`)
 
-#### Coordination Tasks
-- **Playback Control**: Manages track and album-level playback requests.
-- **Navigation**: Handles switching between functional tabs.
-- **Service Integration**: Manages the lifecycle of Google Drive and metadata services.
-- **State Monitoring**: Maintains a reactive state of the current track, position, and duration.
+Configuration for wiring layers together (e.g., Hilt/Koin modules).
 
-## 🔐 Security APIs
-
-Security is enforced through multi-layered validation:
-- **File Validation**: Performed at both the repository and player levels to ensure path safety and format support.
-- **Integrity Checks**: Periodic verification of the application environment to detect unauthorized modifications.
-
-## 📱 Fragment APIs
-
-The UI is divided into focused fragments:
-- **`PlayingFragment`**: Dedicated to displaying the current track, album art, and transport controls.
-- **`TracksFragment`**: Handles the browsing and selection of the music library.
-- **`PicturesFragment`**: Displays a gallery of images related to the currently playing artist.
-
-## 🎯 Best Practices
-
-- **Error Handling**: Always verify player states and use structured exception handling for IO operations.
-- **Security**: Never trust external paths; always validate signatures and permissions.
-- **Performance**: Leverage coroutines for all non-UI tasks and strictly follow lifecycle management rules.
-
-## 🔄 Lifecycle Management
-
-The application follows strict lifecycle rules to prevent memory leaks and ensure resource integrity.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Created
-    Created --> Active : UI Initialized
-    Active --> Paused : App in Background
-    Paused --> Active : App Resumed
-    Active --> Destroyed : App Closed
-    Destroyed --> [*]
-    
-    note right of Destroyed
-        Release Media Resources
-        Nullify View Bindings
-        Cancel Coroutines
-    end note
-```
+-   **DomainModule**: Provides Use Cases.
+-   **DataModule**: Binds Repository implementations to interfaces.
+-   **AppModule**: Provides system services (Context, ContentResolver).

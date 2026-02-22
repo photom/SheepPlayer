@@ -1,120 +1,67 @@
 # Explanation
 
-This section provides conceptual understanding of SheepPlayer's design decisions, architectural choices, and the reasoning behind key implementation details.
+This section provides conceptual understanding of SheepPlayer's architectural decisions, specifically the adoption of Domain-Driven Design (DDD) and Clean Architecture, and the reasoning behind key implementation details.
 
-## Architecture Philosophy
+## Why DDD & Clean Architecture?
 
-### Why Repository Pattern?
+SheepPlayer has transitioned from a traditional layered architecture to one based on **Domain-Driven Design (DDD)** and **Clean Architecture**. This strategic shift addresses several critical aspects of modern Android development:
 
-SheepPlayer uses the Repository pattern to create a clean separation between data access and business logic. This architectural choice stems from several important considerations:
+### 1. Framework Independence
+-   **The Core is Pure**: The Domain layer (Entities, Use Cases) contains *zero* Android dependencies. It is pure Kotlin.
+-   **Future-Proofing**: If Android UI libraries change (e.g., from XML to Compose) or database technologies evolve (e.g., from SQLite to Room or Realm), the core business logic remains untouched.
+-   **Benefit**: The most valuable part of the application—the business rules—is protected from external churn.
 
--   **Separation of Concerns**: The Repository pattern isolates data access logic from UI components and business logic. This means the `MainActivity` doesn't need to know the intricacies of `MediaStore` queries.
--   **Testability**: By abstracting data access behind an interface, mock implementations can be substituted during testing, allowing components to be tested without actual media access.
--   **Flexibility**: The implementation can be changed (e.g., adding a local database or web service) without affecting the rest of the application, as the interface contract remains the same.
+### 2. Testability First
+-   **Isolated Logic**: Because the Domain layer has no dependencies on the Android framework, unit tests can run instantly on the JVM without needing an emulator or device.
+-   **Mocking Power**: Interfaces defined in the Domain layer allow us to easily swap real implementations (like `MusicRepositoryImpl` talking to `MediaStore`) with fake ones (like `FakeMusicRepository` returning a static list) for rigorous testing.
+-   **Benefit**: Faster, more reliable test suites lead to higher code quality and fewer regressions.
 
-### Security-First Design
+### 3. Scalability & Maintainability
+-   **Clear Boundaries**: Each feature is implemented as a set of Use Cases. Adding a new feature (e.g., "Create Playlist") involves adding a new Use Case and potentially a new Entity method, without modifying unrelated code.
+-   **Cognitive Load**: Developers only need to understand the specific Use Case they are working on, not the entire application flow.
+-   **Benefit**: The codebase can grow in complexity without becoming a "Big Ball of Mud."
 
-SheepPlayer's architecture prioritizes security from the ground up, reflecting modern Android development practices.
+## Architectural Philosophy
 
--   **Input Validation**: Every external input is treated as potentially malicious. File paths from `MediaStore` undergo strict validation to prevent directory traversal attacks.
--   **Principle of Least Privilege**: The app requests only the minimum permissions necessary, specifically targeting audio file access on modern Android versions.
--   **Defense in Depth**: Multiple layers of validation exist. File paths are validated in both the Repository (during data loading) and the `MusicPlayer` (before playback).
+### Separation of Concerns
+The application is divided into concentric circles, with the Domain at the center.
 
-## Data Flow Architecture
+-   **Entities**: Represent core business concepts (`Track`, `Artist`, `Album`). They encapsulate state and behavior.
+-   **Use Cases**: Orchestrate the flow of data to and from Entities. They tell the Entities *what* to do.
+-   **Interface Adapters**: Convert data from the format most convenient for the Use Cases and Entities, to the format most convenient for external agencies (Database, Web).
+-   **Frameworks & Drivers**: The outermost layer. This is where the Database and the Web Framework live.
 
-### The Path from MediaStore to UI
+### Dependency Rule
+Source code dependencies can only point **inwards**. Nothing in an inner circle can know anything at all about something in an outer circle.
 
-The following diagram illustrates how music data flows through the different layers of SheepPlayer.
+-   **Data Layer** knows about **Domain Layer**.
+-   **Presentation Layer** knows about **Domain Layer**.
+-   **Domain Layer** knows *nothing* about Data or Presentation.
 
-```mermaid
-flowchart LR
-    MS[(MediaStore)] -- Raw Query --> Repo[MusicRepository]
-    Repo -- Sanitization & Structure --> Data[Structured Data]
-    Data -- Observable State --> MA[MainActivity]
-    MA -- Fragment Updates --> UI[UI Fragments]
-```
+## Key Design Decisions
 
-1.  **MediaStore Query**: Raw data is queried from the system content provider.
-2.  **Data Processing**: Raw tracks are organized into an Artist → Album → Track hierarchy.
-3.  **State Management**: Processed data is held in the `MainActivity` as the single source of truth.
-4.  **UI Presentation**: Fragments receive and transform the data for display.
+### Repository Pattern (In DDD Context)
+In DDD, the Repository is an abstraction that represents a collection of Domain Entities.
 
-### Hierarchical Data Organization
+-   **Interface in Domain**: The `MusicRepository` interface is defined in the Domain layer. It speaks the language of the domain (e.g., `getArtists(): List<Artist>`).
+-   **Implementation in Data**: The `MusicRepositoryImpl` is in the Data layer. It handles the details of `MediaStore` queries, cursors, and mapping to Domain Entities.
 
-SheepPlayer organizes music in a three-level hierarchy to match the user's mental model and optimize performance.
+### Use Cases as Interactors
+We explicitly define classes for every user action or business rule (e.g., `PlayMusicUseCase`, `SearchLibraryUseCase`). This makes the codebase self-documenting: looking at the `domain/usecase` package tells you exactly what the application *does*.
 
-```mermaid
-classDiagram
-    class Artist {
-        +List albums
-    }
-    class Album {
-        +List tracks
-    }
-    class Track {
-        +String metadata
-    }
-    Artist "1" *-- "many" Album
-    Album "1" *-- "many" Track
-```
+## Security & Data Flow
 
--   **User Mental Model**: Matches how users typically think about and browse music collections.
--   **Performance**: Supports efficient lazy loading and reduces visual clutter.
--   **Technical Benefits**: Maps elegantly to the `RecyclerView` adapter pattern and enables intuitive expand/collapse animations.
+### Secure by Design
+-   **Domain Validation**: Entities enforce their own invariants (e.g., a `Track` cannot have a negative duration).
+-   **Data Sanitization**: The Data layer is responsible for sanitizing external inputs (files, network data) before they are converted into Domain Entities.
+-   **Presentation Logic**: The UI handles user input validation but delegates all business logic to the Use Cases.
 
-## UI Design Decisions
-
-### Bottom Navigation Choice
-
-SheepPlayer uses bottom navigation with three primary tabs: **Tracks**, **Playing**, and **Pictures**.
-
--   **Thumb-Friendly**: Easily reachable on modern smartphone screens, supporting one-handed use.
--   **Workflow Alignment**: Represents natural user workflows: browsing, controlling, and exploring.
--   **Platform Consistency**: Follows Android Material Design guidelines for a native feel.
-
-### Swipe-to-Play Gesture
-
-The swipe-right-to-play gesture on tracks provides an efficient and satisfying interaction.
-
--   **Efficiency**: Reduces the interaction to a single, quick gesture.
--   **Discoverability**: Leverages well-established Android patterns found in common productivity apps.
--   **Visual Feedback**: Provides immediate, direct manipulation feedback to the user.
-
-## Technology Choices
-
-### Why Kotlin?
-
-SheepPlayer is built with Kotlin for its modern language features:
-
--   **Null Safety**: Eliminates a large class of runtime crashes through explicit null handling.
--   **Conciseness**: Reduces boilerplate code with features like data classes and extension functions.
--   **Coroutines**: Provides clean, structured concurrency for background operations.
-
-### MediaStore Integration
-
-Using the `MediaStore` API over direct file scanning ensures:
-
--   **High Performance**: Leverages the system's indexed database for fast queries.
--   **Privacy Compliance**: Respects system-level media management and user settings.
--   **Rich Metadata**: Accesses pre-parsed album art, durations, and other tags.
-
-## Security Design Philosophy
-
-### Threat Model & Defense
-
-The application is designed to defend against several key threats:
-
-| Threat | Defense Strategy |
-| :--- | :--- |
-| **Malicious Paths** | Strict path sanitization and traversal checks at multiple layers. |
-| **Data Injection** | Validation of metadata strings and image magic numbers. |
-| **Permission Escalation** | Adherence to the principle of least privilege. |
-| **Information Disclosure** | Secure logging and generic error messaging. |
-
-The "Fail-Safe Default" approach ensures that if validation fails, the app rejects the input rather than attempting to process potentially dangerous data.
-
-## Performance & Evolution
-
--   **Memory Management**: Media resources are released according to the lifecycle, and image loading is optimized for low-RAM devices.
--   **Background Processing**: `Main Thread Protection` is enforced using coroutines for all IO-bound tasks.
--   **Scalability**: The architecture is built to support future features like playlist management and cloud synchronization without requiring a major redesign.
+### Unidirectional Data Flow
+Data flows in a single direction:
+1.  **UI Event**: User clicks "Play".
+2.  **ViewModel**: Calls `PlayMusicUseCase`.
+3.  **Use Case**: Interacts with `MusicRepository` (Domain Interface).
+4.  **Repository Impl**: Fetches/updates data (Data Layer).
+5.  **Return**: Domain Entities are returned up the stack.
+6.  **State Update**: ViewModel updates `uiState`.
+7.  **UI Render**: Fragment observes state and redraws.

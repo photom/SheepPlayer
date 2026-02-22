@@ -1,107 +1,107 @@
 # Project Structure 🏗️
 
-This document outlines the architecture and organization of the SheepPlayer Android application.
+This document outlines the architecture and organization of the SheepPlayer Android application, refactored to adhere to **Domain-Driven Design (DDD)** and **Clean Architecture** principles.
 
 ## 📁 Directory Structure
 
-The SheepPlayer project is organized into several key directories:
+The project is organized into distinct layers, ensuring separation of concerns and adherence to the Dependency Rule.
 
-- **Data Models**: Defined in `Data.kt`, including Artist, Album, Track, and CachedMetadata.
-- **Main Activity**: `MainActivity.kt` serves as the entry point with Google Drive integration.
-- **Core Playback**: `MusicPlayer.kt` handles the low-level media playback.
-- **Managers**: The `manager/` directory contains `MusicPlayerManager.kt` for state management.
-- **Repositories**: The `repository/` directory contains `MusicRepository.kt` for data access.
-- **Services**: The `service/` directory includes specialized services for Google Drive, metadata loading, caching, and artist images.
-- **UI Components**: The `ui/` directory is partitioned by feature:
-    - `pictures/`: Artist image gallery components.
-    - `playing/`: Currently playing UI components.
-    - `tracks/`: Music library browsing components.
-    - `menu/`: Settings and navigation menu.
-- **Utilities**: `utils/` contains application constants and formatting helpers.
-- **Resources**: The `res/` directory holds drawables, layouts, icons, navigation graphs, and configuration values.
+-   **Domain Layer** (`domain/`): The core of the application. Contains business logic and is independent of any framework.
+    -   `model/`: Enterprise business rules (Entities and Value Objects like `Track`, `Artist`).
+    -   `repository/`: Interfaces defining contracts for data access.
+    -   `usecase/`: Application business rules (e.g., `PlayMusicUseCase`, `GetLibraryUseCase`).
+-   **Data Layer** (`data/`): Implements the interface adapters.
+    -   `repository/`: Concrete implementations of domain repositories.
+    -   `datasource/`: Low-level data access (e.g., `MediaStoreDataSource`, `GoogleDriveDataSource`).
+    -   `mapper/`: Converts data between Data Transfer Objects (DTOs) and Domain Entities.
+-   **Presentation Layer** (`presentation/`): Handles UI and user interaction.
+    -   `ui/`: Android Activities, Fragments, and custom Views.
+    -   `viewmodel/`: State holders that interact with Use Cases and expose data to the UI.
+-   **Infrastructure** (`di/`, `framework/`): Framework-specific implementations and dependency injection configuration.
 
 ## 🏛️ Architecture Overview
 
-SheepPlayer follows modern Android architecture principles with clear separation of concerns using the MVVM and Repository patterns.
+SheepPlayer follows **Clean Architecture**, enforcing a strict dependency rule where inner layers (Domain) know nothing about outer layers (Data, Presentation).
 
-### MVVM + Repository Pattern
+### The Dependency Rule
 
 ```mermaid
-flowchart TD
-    MainActivity[MainActivity - Entry Point] --> UI_Fragments[UI Fragments - Screens]
-    UI_Fragments --> ViewModels[ViewModels - State Management]
-    ViewModels --> Repository[MusicRepository - Data Access]
-    Repository --> MediaStore[MediaStore - System Database]
+graph TD
+    subgraph Presentation ["Presentation Layer (UI/ViewModel)"]
+    end
+    subgraph Data ["Data Layer (Repository Impl/DataSource)"]
+    end
+    subgraph Domain ["Domain Layer (Entities/Use Cases)"]
+    end
+
+    Presentation --> Domain
+    Data --> Domain
 ```
 
-## 🔧 Core Components
+### Layer Interaction (DDD Context)
 
-### Data Layer
+```mermaid
+sequenceDiagram
+    participant UI as Presentation (View/ViewModel)
+    participant UC as Domain (Use Case)
+    participant Rep as Domain (Repository Interface)
+    participant Impl as Data (Repository Impl)
+    participant Source as Data Source (MediaStore/Cloud)
 
-- **`Data.kt`**: Defines the fundamental data entities of the system.
-- **`MusicRepository.kt`**: Orchestrates media data retrieval and sanitization.
-- **Security**: Ensures all data access follows secure patterns.
+    UI->>UC: Execute User Action (e.g., "Play Track")
+    UC->>Rep: Request Data/Action
+    Rep->>Impl: (Interface Resolution)
+    Impl->>Source: Fetch/Persist Data
+    Source-->>Impl: Return Raw Data
+    Impl-->>Rep: Return Domain Entity
+    Rep-->>UC: Return Result
+    UC-->>UI: Update State
+```
 
-### Business Logic
+## 🔧 Core Components by Layer
 
-- **`MusicPlayerManager.kt`**: Coordinates the playback state between the UI and the player.
-- **`MusicPlayer.kt`**: Handles the actual audio output with built-in security checks.
-- **Separation**: Maintains strict boundaries between raw data and presentation logic.
+### 1. Domain Layer (The Core)
+This layer contains the "Truth" of the application. It depends on nothing.
+-   **Entities**: `Artist`, `Album`, `Track`. Pure Kotlin classes with data and behavior.
+-   **Use Cases**: Encapsulate specific business rules.
+    -   `GetMusicLibraryUseCase`: Orchestrates retrieving and organizing music.
+    -   `ControlPlaybackUseCase`: Manages player state transitions.
+-   **Repository Interfaces**: `MusicRepository`, `AuthRepository`. Defines *what* data operations are possible, not *how* they are implemented.
 
-### UI Layer
+### 2. Data Layer (The Provider)
+Responsible for providing data to the domain.
+-   **Repository Implementations**: `MusicRepositoryImpl`. Coordinates between local storage and cloud services.
+-   **Data Sources**:
+    -   `LocalMediaDataSource`: Wrapper around Android `MediaStore`.
+    -   `RemoteDriveDataSource`: Wrapper around Google Drive API.
+-   **Mappers**: Transforms database/network models into Domain Entities.
 
-- **`MainActivity.kt`**: Acts as the host for navigation and permission handling.
-- **Fragment-based UI**: Modularizes screens for a responsive user experience.
-- **Adapters**: Handles complex data presentation like hierarchical music trees.
-- **Material Design**: Follows modern Android visual standards.
+### 3. Presentation Layer (The Interface)
+Responsible for showing data to the user and interpreting user commands.
+-   **ViewModels**: `LibraryViewModel`, `PlayerViewModel`. They hold UI state and trigger Use Cases.
+-   **Fragments**: `TracksFragment`, `PlayingFragment`. Observe ViewModels and render the UI.
 
-### Utilities
+## 🔄 Data Flow Example: Loading the Library
 
-- **`Constants.kt`**: Centralizes global application settings.
-- **`TimeUtils.kt`**: Provides formatting for media durations.
-- **Security Configs**: Configures network and backup policies.
+1.  **UI**: `TracksFragment` asks `LibraryViewModel` to load music.
+2.  **Presentation**: `LibraryViewModel` executes `GetMusicLibraryUseCase`.
+3.  **Domain**: `GetMusicLibraryUseCase` calls `MusicRepository.getAllMusic()`.
+4.  **Data**: `MusicRepositoryImpl` calls `LocalMediaDataSource` to query the device and `RemoteDriveDataSource` if authenticated.
+5.  **Data**: Results are combined and mapped to `Artist` entities.
+6.  **Domain**: The Use Case applies any business sorting/filtering rules.
+7.  **Presentation**: `LibraryViewModel` updates the `uiState` with the list of Artists.
+8.  **UI**: `TracksFragment` renders the list via `TreeAdapter`.
 
-## 🔄 Data Flow
+## 🛡️ Security Architecture in DDD
 
-1.  **App Launch**: The system requests necessary media permissions.
-2.  **Data Loading**: The repository queries the system media database.
-3.  **Data Processing**: Raw data is structured into a logical hierarchy (Artist → Album → Track).
-4.  **UI Update**: Fragments observe the processed data and update the display.
-5.  **User Interaction**: Gestures or clicks trigger playback commands.
-6.  **Playback**: The player validates the request and starts audio output.
-
-## 🛡️ Security Architecture
-
-### Input Validation
-
-- Strict sanitization of file paths to prevent traversal.
-- White-listing of audio file extensions.
-- Comprehensive null-safety throughout the data flow.
-
-### Component Security
-
-- Minimal exposure of application components.
-- Specific intent filtering to prevent hijacking.
-- Secure network configurations for cloud services.
-
-### Data Protection
-
-- No storage of sensitive user information.
-- Controlled backup policies to prevent data leakage.
-- Secure patterns for all local file interactions.
+Security logic is located in specific layers:
+-   **Domain**: Defines validation rules (e.g., `Track` entity ensures its path format is valid upon creation).
+-   **Data**: Sanitizes inputs before they reach the Domain (e.g., Repository filters out malicious file paths from raw queries).
+-   **Presentation**: input validation for user-entered data before sending to a Use Case.
 
 ## 📦 Dependencies
 
-The project utilizes standard Android and testing libraries, including:
-
-- **Core Android**: Kotlin extensions, AppCompat, Fragments, and Lifecycle components.
-- **UI Components**: Material Design, ConstraintLayout, and Navigation.
-- **Testing**: JUnit, AndroidX Test extensions, and Espresso for UI testing.
-
-## 🔮 Future Enhancements
-
-- **ViewModels**: Formalizing state management with dedicated ViewModels.
-- **Room Database**: Implementing local caching for performance.
-- **Dependency Injection**: Adopting Hilt for better component lifecycle management.
-- **Coroutines**: Migrating to structured concurrency for asynchronous tasks.
-- **DataBinding**: Enhancing UI-Model synchronization.
+-   **Domain**: Pure Kotlin (Standard Library). No Android dependencies.
+-   **Data**: Android SDK (for MediaStore), Network libraries (Retrofit/Google API).
+-   **Presentation**: Android Jetpack (Lifecycle, ViewModel, Navigation), UI Toolkits.
+-   **DI**: Hilt or Koin (to wire layers together).

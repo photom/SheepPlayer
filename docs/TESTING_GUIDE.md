@@ -1,108 +1,88 @@
-# Testing Guide 🧪
+# Testing Guide (Android Music Player) 🧪
 
-This document outlines the testing strategy, guidelines, and implementation details for the SheepPlayer Android application.
+This document outlines the testing strategy for SheepPlayer, an Android music player built on **Domain-Driven Design (DDD)** and **Clean Architecture**.
 
-## 📋 Testing Strategy
+## 📋 Testing Strategy (DDD & Clean)
 
-SheepPlayer follows a comprehensive testing approach with multiple layers to ensure reliability, security, and performance.
+The project follows a multi-layered testing approach, leveraging Clean Architecture to maximize unit test coverage and minimize dependence on the Android framework.
 
 ```mermaid
 flowchart TD
-    UI[UI Tests - Espresso] -- E2E Workflows --> Integration
-    Integration[Integration Tests] -- Component Interaction --> Unit
-    Unit[Unit Tests] -- Logic & Utilities --> Codebase
+    Presentation[Presentation Layer - ViewModel/UI] -- Instrumented/Unit --> UI
+    Domain[Domain Layer - Use Cases/Entities] -- Pure Unit --> Logic
+    Data[Data Layer - Repository/DataSource] -- Unit/Integration --> Persistence
+
+    subgraph UI ["UI & State Tests"]
+        T1[Espresso UI Tests]
+        T2[ViewModel State Tests]
+    end
+    subgraph Logic ["Pure Business Logic Tests"]
+        T3[Use Case Tests]
+        T4[Entity Invariant Tests]
+    end
+    subgraph Persistence ["Data & Security Tests"]
+        T5[Repository Mapping Tests]
+        T6[DataSource Security Tests]
+    end
 ```
 
-## 🎯 Testing Objectives
+## 🎯 Testing Objectives (Music Domain)
 
--   **Functionality**: Verification of core music player operations.
--   **Security**: Validation of file path sanitization and input filtering.
--   **UI/UX**: Ensuring proper user interface behavior and responsiveness.
--   **Performance**: Testing stability and speed with large music libraries.
--   **Reliability**: Handling of edge cases and error conditions gracefully.
+-   **Business Logic**: Validate that `Track`, `Album`, and `Artist` entities maintain valid states and that Use Cases orchestrate the player correctly.
+-   **Security**: Verify that `MusicRepository` sanitizes file paths and `ArtistImageService` validates image magic numbers.
+-   **State Management**: Ensure `LibraryViewModel` and `PlayerViewModel` transition through correct states (Loading, Success, Error).
+-   **UI/UX**: Confirm that swipe-to-play gestures and tab navigation work as expected.
+-   **Performance**: Test the system's responsiveness when scanning a large music library (1000+ tracks).
 
-## 🔬 Unit Testing
+## 🔬 1. Domain Layer Testing (Pure Unit Tests)
+The domain layer is pure Kotlin and has zero Android dependencies, making tests extremely fast.
 
-Unit tests focus on the smallest testable parts of the application in isolation.
+-   **Entity Invariants**: Test that a `Track` entity rejects negative durations or invalid path formats during creation.
+-   **Use Case Orchestration**: Use a mock `MusicRepository` to test that `GetMusicLibraryUseCase` correctly groups tracks into artists and albums.
+-   **Example**: `PlayTrackUseCase` should only call the player if the track is valid.
 
--   **Test Location**: Found in the `app/src/test/java/com/hitsuji/sheepplayer2/` directory.
--   **TimeUtils Tests**: Validate duration formatting for standard, edge, and negative cases.
--   **MusicRepository Security Tests**: Verify audio file extension validation and ensure protection against path traversal attacks.
--   **MusicPlayer Tests**: Ensure only valid and readable files are loaded into the media player engine.
+## 💾 2. Data Layer Testing (Unit & Integration)
+Focuses on data mapping and security validation.
 
-## 🎭 Integration Testing
+-   **Repository Implementation**: Test that `MusicRepositoryImpl` correctly combines data from local and remote sources and maps them to Domain Entities.
+-   **Data Sanitization**: Verify that `LocalMediaDataSource` filters out files with non-audio extensions or suspicious path segments (`../`).
+-   **Image Validation**: Specifically test the `ArtistImageService` against a suite of valid (JPEG, PNG) and malicious (disguised HTML/scripts) binary signatures.
 
-Integration tests verify that different modules or services work together correctly.
+## 🖥️ 3. Presentation Layer Testing (State & UI)
+Focuses on UI logic and user interaction.
 
--   **Fragment Integration**: Tests the interaction between UI fragments and their underlying logic (e.g., verifying that a swipe gesture in the tracks list correctly updates the playback state).
--   **Service Interaction**: Ensures that services like the Google Drive repository and the metadata extractor communicate effectively.
+-   **ViewModel State**: Test that `LibraryViewModel` emits a `Loading` state followed by a `Success` state when the library Use Case returns data.
+-   **UI Logic**: Test the formatting logic in `TimeUtils` (e.g., converting 90,000ms to "1:30").
+-   **Espresso UI Tests**:
+    -   Verify that the "No track selected" message appears on first launch.
+    -   Test the swipe-to-play gesture on a track item and confirm navigation to the "Playing" tab.
+    -   Verify the tab switching behavior and persistence of the expanded artist state.
 
-## 🤖 UI Testing (Espresso)
+## 🎭 4. Integration Testing (Component Interaction)
+Tests the interaction between multiple layers.
 
-UI tests simulate user interactions to verify the end-to-end functionality of the application.
+-   **Playback Flow**: Verify that triggering the `PlayTrackUseCase` from a ViewModel correctly updates the `MusicPlayer` state and notifies the UI.
+-   **Google Drive Sync**: Test the end-to-end flow from signing in to the metadata loading service broadcasting a "Complete" signal.
 
--   **Test Location**: Found in the `app/src/androidTest/java/com/hitsuji/sheepplayer2/` directory.
--   **Permission Flow**: Validates how the app handles permission requests and subsequent data loading.
--   **Playback UI**: Tests the behavior of the play/pause toggle and the display of track information.
--   **Navigation**: Verifies that switching between bottom navigation tabs (Tracks, Playing, Pictures) works as expected.
+## 🛠️ Testing Tools & Standards
 
-## 📊 Test Data Management
+-   **Unit Testing**: JUnit 5, Mockito/MockK (for mocking repositories in Use Case tests).
+-   **Android Testing**: AndroidX Test, Espresso (for UI), Robolectric (for repository integration tests).
+-   **Patterns**:
+    -   **Arrange-Act-Assert (AAA)**: Use a clear structure for all tests.
+    -   **Test Data Factory**: Use a centralized utility to create mock `Track`, `Album`, and `Artist` objects.
 
-The project utilizes a centralized `TestDataFactory` strategy to ensure consistent and reproducible test scenarios.
+## 📊 Test Coverage Goals
 
--   **Mock Entities**: Provides helpers to create standardized `Track`, `Album`, and `Artist` objects for tests.
--   **Hierarchy Simulation**: Can generate complex mock data structures, such as artists with multiple albums and tracks.
-
-## 🔐 Security Testing
-
-Security testing is a priority, focusing on protecting user data and system integrity.
-
--   **Malicious Path Prevention**: Explicitly tests against common attack vectors like path traversal and unauthorized file access.
--   **Extension Validation**: Ensures that only supported media formats are processed by the system.
-
-## 🎯 Performance Testing
-
-Performance tests ensure the app remains responsive under heavy load.
-
--   **Large Dataset Handling**: Validates that the system can process and display libraries containing thousands of tracks within a few seconds.
--   **Memory Usage**: Monitors memory consumption during intensive operations to prevent leaks and crashes.
-
-## 🛠️ Testing Tools & Frameworks
-
-The following tools are used to maintain the testing suite:
-
-| Category | Tools |
-| :--- | :--- |
-| **Unit Testing** | JUnit 4, Mockito, MockK, Robolectric |
-| **Android Testing** | AndroidX Test, Espresso |
-| **Automation** | Gradle for execution, JaCoCo for coverage |
-
-### Running Tests
-
-Tests can be executed through the Gradle wrapper:
-
--   Run all unit tests: `./gradlew test`
--   Run all instrumented (UI) tests: `./gradlew connectedAndroidTest`
--   Generate coverage reports: `./gradlew jacocoTestReport`
-
-## 📈 Test Coverage Goals
-
-The project aims for high coverage across all critical areas:
--   **Unit Tests**: 80%+ coverage of business logic.
--   **Integration & UI**: Coverage of all major user journeys.
--   **Security**: 100% coverage of input validation logic.
-
-## 🎯 Testing Best Practices
-
-1.  **Arrange-Act-Assert**: Maintain a clear structure for every test case.
-2.  **Independence**: Ensure tests do not depend on the state left by previous tests.
-3.  **Descriptive Naming**: Use names that clearly state the expected behavior.
-4.  **Mocking**: Isolate components by mocking external dependencies like the file system or MediaStore.
-5.  **Edge Case Focus**: Prioritize testing boundary conditions and error states.
+-   **Domain Layer**: 95%+ (Crucial for business logic).
+-   **Data Layer**: 80%+ (Focus on mappers and sanitization).
+-   **Presentation Layer**: 70%+ (Focus on ViewModels and critical UI flows).
+-   **Security Paths**: 100% (Non-negotiable coverage for all input validation).
 
 ## 🔍 Test Review Checklist
 
--   [ ] Are all public methods covered by tests?
--   [ ] Are security validations thoroughly verified?
--   [ ] Is the UI responsive during all test scenarios?
--   [ ] Does the test data cleanup properly after execution?
+-   [ ] Are use cases tested with both success and failure repository results?
+-   [ ] Does the image validation test suite include all supported magic numbers?
+-   [ ] Are all UI interactions (swipes, taps) covered by Espresso or manual tests?
+-   [ ] Is the "Red-Green-Refactor" cycle followed for all new feature development?
+-   [ ] Are all time formatting edge cases (0ms, negative, >1 hour) tested?
