@@ -5,59 +5,66 @@ description: Expert guidance on secure Android application development. Use when
 
 # Secure Android Development
 
-This skill provides procedural knowledge for implementing and maintaining a secure Android application using best practices for input validation, file security, and network safety.
+This skill provides procedural knowledge for implementing and maintaining a secure Android application using best practices for data protection, component hardening, and secure communication, aligned with OWASP Mobile Top 10.
 
 ## Core Principles
 
-1.  **Least Privilege**: Request only the minimum permissions needed.
-2.  **Input Validation**: Treat all external data (files, intents, network) as untrusted.
-3.  **Path Sanitization**: Prevent path traversal attacks by validating and sanitizing file paths.
-4.  **Secure Storage**: Protect sensitive data using encrypted storage if necessary.
-5.  **Component Security**: Minimize exported components (activities, services, providers).
+1.  **Defense in Depth**: Layered security controls so that if one fails, others provide protection.
+2.  **Least Privilege**: Request only the minimum permissions and narrowest scope for file/data access.
+3.  **Zero Trust Architecture**: Never trust external data (Intents, files, network responses) without validation.
+4.  **Secure Defaults**: Use the most secure settings by default (e.g., `exported="false"`, `allowBackup="false"`).
 
-## Security Layers
+## Security Focus Areas
 
-### 1. Input Validation (`repository/`, `utils/`)
--   **Components**: File path validation, intent filtering, data sanitization.
--   **Responsibility**: Ensuring only valid and safe data enters the system.
--   **Guideline**: Use white-listing for file extensions and path structures.
+### 1. Data at Rest (Secure Storage)
+-   **Guideline**: Use **Jetpack Security (EncryptedSharedPreferences/EncryptedFile)** for sensitive data.
+-   **Internal Storage**: Prefer internal storage over external storage for app-private data.
+-   **No Hardcoded Secrets**: Use Android Keystore for managing cryptographic keys.
 
-### 2. File Security (`MusicPlayer.kt`, `MusicRepository.kt`)
--   **Components**: File system access, storage permissions.
--   **Responsibility**: Protecting the user's files and system integrity.
--   **Guideline**: Always check `exists()`, `canRead()`, and `isFile()` before processing files.
+### 2. Data in Transit (Secure Communication)
+-   **Enforce HTTPS**: Use `Network Security Configuration` to disable cleartext traffic.
+-   **SSL Pinning**: For high-security apps, implement certificate pinning to prevent MitM attacks.
+-   **Sensitive Data**: Avoid passing sensitive data via URL parameters.
 
-### 3. Network Security (`res/xml/network_security_config.xml`)
--   **Components**: API connections, SSL/TLS configuration.
--   **Responsibility**: Protecting data in transit.
--   **Guideline**: Enforce HTTPS and pin certificates for critical services.
+### 3. Component Hardening
+-   **Exported Components**: Explicitly set `android:exported="false"` for all Activities, Services, and Receivers unless they MUST be public.
+-   **Intent Validation**: Validate all incoming Intent extras and actions.
+-   **Permission Enforcement**: Use custom permissions for inter-app communication.
 
-### 4. Data Protection
--   **Components**: `AndroidManifest.xml` backup configuration.
--   **Responsibility**: Preventing unauthorized data leakage.
--   **Guideline**: Set `android:allowBackup="false"` for apps with sensitive data.
+### 4. Input Validation & Path Security
+-   **Path Traversal**: Always use `File.getCanonicalPath()` and check against a base directory.
+-   **Content Providers**: Secure Content Providers with `readPermission` and `writePermission`.
+-   **SQL Injection**: Use parameterized queries with Room/SQLite.
 
 ## Security Workflows
 
-### Implementing Secure File Access
-1.  **Validate Extension**: Use a white-list (e.g., `.mp3`, `.flac`).
-2.  **Check Path Traversal**: Reject paths containing `..` or leading `/etc/`.
-3.  **Sanitize Path**: Use `File.getCanonicalPath()` to resolve symbolic links and relative paths.
-4.  **Verify Permissions**: Ensure the app has the necessary storage permissions (e.g., `READ_EXTERNAL_STORAGE`).
+### Implementing Encrypted Storage
+1.  Add `androidx.security:security-crypto` dependency.
+2.  Initialize `MasterKey` using `MasterKey.Builder`.
+3.  Create `EncryptedSharedPreferences` using the MasterKey.
+4.  Store/Retrieve data using standard `SharedPreferences` API.
 
-### Hardening Components
-1.  **MainActivity**: Only export if it is the entry point.
-2.  **Services/Receivers**: Set `android:exported="false"` by default.
-3.  **Intents**: Use explicit intents for internal communication.
-4.  **Intent Filters**: Be as specific as possible to prevent intent hijacking.
+### Hardening Network Security
+1.  Create `res/xml/network_security_config.xml`.
+2.  Define `<base-config cleartextTrafficPermitted="false">`.
+3.  (Optional) Add `<pin-set>` for specific domains.
+4.  Link in `AndroidManifest.xml` via `android:networkSecurityConfig`.
 
-## Security Testing
--   Always include **malicious path tests** (e.g., `../../../etc/passwd`).
--   Test **extension validation** (e.g., rejecting `.txt`, `.jpg` as audio).
--   Verify **null/empty path handling**.
--   Test **permission denial scenarios**.
+### Secure File Access (Path Sanitization)
+1.  Receive a path from an untrusted source.
+2.  Convert to `File` object and call `canonicalPath`.
+3.  Check if `canonicalPath.startsWith(expectedBaseDir)`.
+4.  Verify the file extension against a strict whitelist.
+
+## Security Checklist (OWASP Mobile Top 10)
+-   [ ] **M1: Improper Platform Usage**: Are we using permissions and intents correctly?
+-   [ ] **M2: Insecure Data Storage**: Is sensitive data encrypted?
+-   [ ] **M3: Insecure Communication**: Is HTTPS enforced everywhere?
+-   [ ] **M4: Insecure Authentication**: Are we using Biometrics/Keystore properly?
+-   [ ] **M5: Insufficient Cryptography**: Are we using modern algorithms (AES-GCM, RSA-PSS)?
+-   [ ] **M7: Client Code Quality**: Have we sanitized all inputs to prevent injection/traversal?
 
 ## References
--   See `docs/PROJECT_STRUCTURE.md` for the security architecture overview.
--   See `docs/TESTING_GUIDE.md` for specific security test examples.
--   See `docs/SOLID_COMPLIANCE.md` for the secure design principles.
+-   See `docs/reference/test-plans/security.md` for specific security test cases.
+-   Android Developers Security Best Practices: [https://developer.android.com/topic/security/best-practices](https://developer.android.com/topic/security/best-practices)
+-   OWASP Mobile Top 10: [https://owasp.org/www-project-mobile-top-10/](https://owasp.org/www-project-mobile-top-10/)

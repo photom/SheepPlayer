@@ -16,15 +16,15 @@ This skill provides procedural knowledge for designing and documenting software 
 
 ## Design Diagrams (Mermaid)
 
-### 1. Structural Design (Class Diagram)
+### 1. Structural Design (DDD-Centric Class Diagram)
 -   **Goal**: Define components, their attributes, and their relationships (inheritance, composition, aggregation).
+-   **DDD Focus**: Explicitly label **Entities**, **Value Objects**, and **Aggregate Roots**. Show boundaries between Domain and Infrastructure.
 -   **Style**: Use `classDiagram`. Represent abstractions and interfaces clearly.
--   **Example**: Defining the relationship between `MusicPlayer`, `MusicPlayerManager`, and `MusicRepository`.
 
-### 2. Behavioral Design (Sequence Diagram)
+### 2. Behavioral Design (UX-Centric Sequence Diagram)
 -   **Goal**: Illustrate how components interact over time to fulfill a use case.
+-   **UX Focus**: Show user interactions, feedback loops (UI updates, haptics), and error states. Focus on the user's journey.
 -   **Style**: Use `sequenceDiagram`. Show synchronous calls, asynchronous events, and error handling paths.
--   **Example**: The flow from "User clicks Play" to "Music starts playing."
 
 ### 3. State Design (State Diagram)
 -   **Goal**: Map the lifecycle and internal states of a complex component.
@@ -40,23 +40,23 @@ This skill provides procedural knowledge for designing and documenting software 
 
 ### Planning a New Feature
 1.  **Define Requirements**: State the goals and constraints in clear sentences.
-2.  **Structural Mapping**: Create a `classDiagram` to identify the new components needed.
-3.  **Interaction Modeling**: Create a `sequenceDiagram` to show how the feature will function.
-4.  **State Analysis**: If the component is stateful, create a `stateDiagram-v2`.
+2.  **Structural Mapping**: Create a `classDiagram` to identify the new components needed, using DDD terminology.
+3.  **Interaction Modeling**: Create a `sequenceDiagram` to show how the feature will function, emphasizing the UX feedback.
+4.  **State Analysis**: If the component is stateful (e.g., a playback engine), create a `stateDiagram-v2`.
 5.  **Data Analysis**: If new data is introduced, create an `erDiagram`.
 6.  **Narrative Summary**: Write a concise summary of the design's benefits and potential risks.
 
 ### Documenting Existing Architecture
-1.  **Analyze**: Review the existing codebase (using standard tools, not as part of the design output).
+1.  **Analyze**: Review the existing codebase.
 2.  **Extract**: Identify the core components and their interactions.
 3.  **Translate**: Convert the code-level relationships into Mermaid diagrams.
 4.  **Clarify**: Add descriptive sentences to explain parts of the system that are not obvious from the diagrams.
 
 ## Design Patterns & Standards
--   **Clean Architecture Boundaries**: Use diagrams to show the separation between Presentation, Business Logic, and Data layers.
+-   **Clean Architecture Boundaries**: Use diagrams to show the separation between Presentation, Business Logic (Domain), and Data (Infrastructure) layers.
 -   **SOLID Compliance**: Visualize how DIP is achieved through interface-based relationships in class diagrams.
 
 ## References
--   See `docs/PROJECT_STRUCTURE.md` for current high-level architectural overview.
--   See `docs/SOLID_COMPLIANCE.md` for how current design patterns are applied.
+-   See `docs/reference/project-structure.md` for current high-level architectural overview.
+-   See `docs/explanation/solid-compliance.md` for how current design patterns are applied.
 -   Visit [https://mermaid.js.org/](https://mermaid.js.org/) for official Mermaid diagram documentation.

@@ -19,25 +19,25 @@ This skill provides procedural knowledge for implementing the Diátaxis framewor
 -   **Goal**: Help the user get started and achieve a small, meaningful success.
 -   **Style**: Learning by doing, step-by-step, prescriptive, and reliable.
 -   **Guideline**: Focus on the experience of doing, not on the theory. Ensure it always works.
--   **SheepPlayer Example**: `docs/tutorial.md` (e.g., "Your First Track with SheepPlayer").
+-   **SheepPlayer Example**: `docs/tutorials/getting-started.md` (e.g., "Your First Track with SheepPlayer").
 
 ### 2. How-to Guides (Goal-Oriented)
 -   **Goal**: Provide a recipe for solving a specific, real-world problem.
 -   **Style**: Practical, task-focused, assuming some prior knowledge.
 -   **Guideline**: Focus on the task, not the user. Keep it brief and direct.
--   **SheepPlayer Example**: `docs/how-to-guides.md` (e.g., "How to Sync with Google Drive").
+-   **SheepPlayer Example**: `docs/how-to-guides/common-tasks.md` (e.g., "How to Sync with Google Drive").
 
 ### 3. Reference (Information-Oriented)
 -   **Goal**: Provide technical, factual descriptions of the machinery.
 -   **Style**: Descriptive, precise, organized for lookup, neutral.
 -   **Guideline**: Focus on accuracy and completeness. Use tables and lists for quick scanning.
--   **SheepPlayer Example**: `docs/reference.md` or `docs/API_REFERENCE.md`.
+-   **SheepPlayer Example**: `docs/reference/technical-reference.md` or `docs/reference/api.md`.
 
 ### 4. Explanation (Understanding-Oriented)
 -   **Goal**: Clarify and illuminate a particular topic or concept.
 -   **Style**: Discussion-based, discursive, providing context and alternatives.
 -   **Guideline**: Focus on the "why" and "how it works." Build a mental model for the user.
--   **SheepPlayer Example**: `docs/explanation.md` (e.g., "Understanding the Security Architecture").
+-   **SheepPlayer Example**: `docs/explanation/architecture-decisions.md` (e.g., "Understanding the Security Architecture").
 
 ## Workflows
 
