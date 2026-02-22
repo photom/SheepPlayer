@@ -4,6 +4,37 @@
 
 The SheepPlayer app includes Google Drive integration to load and play music files directly from Google Drive. However, this requires proper Google API configuration.
 
+## Authentication Flow (Google Drive/Docs)
+
+The following diagram illustrates the sequence of interactions during the Google Drive/Docs authentication process.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as MenuFragment/UI
+    participant VM as MenuViewModel
+    participant Auth as GoogleDriveAuthenticator
+    participant GSO as Google Sign-In (System)
+
+    User->>UI: Tap "Sign in with Google"
+    UI->>VM: onSignInClicked()
+    VM->>Auth: signIn()
+    Auth->>Auth: checkExistingAccount()
+    
+    alt Has Existing Valid Account
+        Auth-->>VM: Success(true)
+        VM-->>UI: Update UI (Logged In)
+    else No Valid Account
+        Auth->>GSO: Launch Sign-In Intent
+        GSO-->>User: Show Google Login UI
+        User->>GSO: Select Account & Grant Permissions
+        GSO-->>Auth: onActivityResult(result)
+        Auth->>Auth: handleSignInResult()
+        Auth-->>VM: Success(true) / Error
+        VM-->>UI: Update UI (Result State)
+    end
+```
+
 ## Setup Requirements
 
 ### 1. Google Cloud Console Setup

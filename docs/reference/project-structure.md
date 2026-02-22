@@ -82,6 +82,35 @@ sequenceDiagram
     VM-->>Fragment: Update UI to "Playing"
 ```
 
+## 🔄 Interaction Flow: Google Drive Login
+
+This sequence illustrates the authentication process for cloud-based music services.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Fragment as Presentation (MenuFragment)
+    participant VM as Presentation (MenuViewModel)
+    participant Auth as Infrastructure (GoogleDriveAuthenticator)
+    participant Google as External (Google Identity Service)
+
+    User->>Fragment: Tap "Sign In"
+    Fragment->>VM: initiateSignIn()
+    VM->>Auth: signIn()
+    Auth->>Auth: Check for active session
+    
+    alt Session Not Found
+        Auth->>Google: Launch Intent (OAuth 2.0)
+        Google-->>User: Request Permissions
+        User->>Google: Approve Access
+        Google-->>Auth: Return Account Tokens
+    end
+    
+    Auth->>Auth: Validate Scopes (DRIVE_READONLY)
+    Auth-->>VM: Return Result (Success/Error)
+    VM-->>Fragment: Update UI State (LoggedIn/LoggedOut)
+```
+
 ## 🛡️ Security Boundaries
 
 Security is handled at the outermost layers before reaching the domain:
