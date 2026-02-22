@@ -1,13 +1,21 @@
 package com.hitsuji.sheepplayer2.ui.menu
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.hitsuji.sheepplayer2.service.GoogleDriveService
-import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.hitsuji.sheepplayer2.domain.usecase.*
+import com.hitsuji.sheepplayer2.service.GoogleDriveResult
+import kotlinx.coroutines.launch
 
-class MenuViewModel(application: Application) : AndroidViewModel(application) {
+class MenuViewModel(
+    private val signInUseCase: SignInUseCase,
+    private val signOutUseCase: SignOutUseCase,
+    private val isSignedInUseCase: IsSignedInUseCase,
+    private val getAccountEmailUseCase: GetAccountEmailUseCase,
+    private val getMusicLibraryUseCase: GetMusicLibraryUseCase
+) : ViewModel() {
 
     private val _googleAccountStatus = MutableLiveData<String>().apply {
         value = "Not signed in"
@@ -29,26 +37,44 @@ class MenuViewModel(application: Application) : AndroidViewModel(application) {
     }
     val musicCount: LiveData<String> = _musicCount
 
-    fun updateGoogleAccountStatus(googleDriveService: GoogleDriveServiceInterface) {
-        val isSignedIn = googleDriveService.isSignedIn()
-        _isSignedIn.value = isSignedIn
+    fun updateGoogleAccountStatus() {
+        val signedIn = isSignedInUseCase()
+        _isSignedIn.value = signedIn
 
-        if (isSignedIn) {
-            val account = googleDriveService.getCurrentAccount()
+        if (signedIn) {
+            val email = getAccountEmailUseCase()
             _googleAccountStatus.value = "Signed in"
-            _currentAccountEmail.value = account?.email ?: "Unknown account"
+            _currentAccountEmail.value = email ?: "Unknown account"
         } else {
             _googleAccountStatus.value = "Not signed in"
             _currentAccountEmail.value = ""
         }
     }
 
-    fun updateMusicCount(localCount: Int, googleDriveCount: Int) {
-        val total = localCount + googleDriveCount
-        _musicCount.value = if (googleDriveCount > 0) {
-            "Music files: $total ($localCount local, $googleDriveCount Google Drive)"
-        } else {
-            "Music files: $localCount (local only)"
+    fun updateMusicCount() {
+        viewModelScope.launch {
+            try {
+                val artists = getMusicLibraryUseCase()
+                val totalTracks = artists.sumOf { it.albums.sumOf { it.tracks.size } }
+                val googleDriveTracks = artists.sumOf { artist ->
+                    artist.albums.sumOf { album ->
+                        album.tracks.count { it.filePath.startsWith("gdrive://") }
+                    }
+                }
+                val localTracks = totalTracks - googleDriveTracks
+
+                _musicCount.value = if (googleDriveTracks > 0) {
+                    "Music files: $totalTracks ($localTracks local, $googleDriveTracks Google Drive)"
+                } else {
+                    "Music files: $localTracks (local only)"
+                }
+            } catch (e: Exception) {
+                _musicCount.value = "Error loading music count"
+            }
         }
     }
+
+    suspend fun signIn(activity: AppCompatActivity): GoogleDriveResult<Unit> = signInUseCase(activity)
+
+    suspend fun signOut(): GoogleDriveResult<Unit> = signOutUseCase()
 }

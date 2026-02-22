@@ -5,23 +5,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.hitsuji.sheepplayer2.MainActivity
+import com.hitsuji.sheepplayer2.SheepApplication
+import com.hitsuji.sheepplayer2.factory.ViewModelFactory
 import com.hitsuji.sheepplayer2.databinding.FragmentMenuBinding
-import com.hitsuji.sheepplayer2.service.GoogleDriveService
 import com.hitsuji.sheepplayer2.service.GoogleDriveResult
-import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
 import kotlinx.coroutines.launch
 
 class MenuFragment : Fragment() {
 
     private var _binding: FragmentMenuBinding? = null
     private lateinit var menuViewModel: MenuViewModel
-    private lateinit var googleDriveService: GoogleDriveServiceInterface
 
-    // This property is only valid between onCreateView and onDestroyView
     private val binding get() = _binding!!
 
     override fun onCreateView(
@@ -29,18 +28,12 @@ class MenuFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        menuViewModel = ViewModelProvider(
-            this,
-            ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().application)
-        ).get(MenuViewModel::class.java)
+        val application = requireActivity().application as SheepApplication
+        val factory = ViewModelFactory(application.container)
+        menuViewModel = ViewModelProvider(this, factory).get(MenuViewModel::class.java)
 
         _binding = FragmentMenuBinding.inflate(inflater, container, false)
         val root: View = binding.root
-
-        // Get GoogleDriveService from MainActivity
-        val mainActivity = activity as? MainActivity
-        googleDriveService =
-            mainActivity?.getGoogleDriveService() ?: GoogleDriveService(requireContext())
 
         setupObservers()
         setupClickListeners()
@@ -52,7 +45,7 @@ class MenuFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         updateUIState()
-        updateMusicCount()
+        menuViewModel.updateMusicCount()
     }
 
     private fun setupObservers() {
@@ -104,49 +97,19 @@ class MenuFragment : Fragment() {
     }
 
     private fun updateUIState() {
-        menuViewModel.updateGoogleAccountStatus(googleDriveService)
-    }
-
-    private fun updateMusicCount() {
-        val mainActivity = activity as? MainActivity
-        if (mainActivity != null) {
-            val allArtists = mainActivity.allArtists
-            val totalTracks = allArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
-
-            // For now, count all as local. In a more sophisticated implementation,
-            // you could track which tracks are from Google Drive
-            val googleDriveTracks = allArtists.sumOf { artist ->
-                artist.albums.sumOf { album ->
-                    album.tracks.count { it.filePath.startsWith("gdrive://") }
-                }
-            }
-            val localTracks = totalTracks - googleDriveTracks
-
-            menuViewModel.updateMusicCount(localTracks, googleDriveTracks)
-        }
+        menuViewModel.updateGoogleAccountStatus()
     }
 
     private fun signInToGoogleDrive() {
         lifecycleScope.launch {
-            when (val result = googleDriveService.signIn()) {
+            when (val result = menuViewModel.signIn(requireActivity() as AppCompatActivity)) {
                 is GoogleDriveResult.Success -> {
-                    Toast.makeText(
-                        context,
-                        "Successfully signed in to Google Drive",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(context, "Successfully signed in to Google Drive", Toast.LENGTH_SHORT).show()
                     updateUIState()
-
-                    // MainActivity will handle the sign-in success through its auth handler
+                    (activity as? MainActivity)?.refreshGoogleDriveMusic()
                 }
                 is GoogleDriveResult.Error -> {
-                    Toast.makeText(
-                        context,
-                        "Google Drive sign-in failed: ${result.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    
-                    // MainActivity will handle the sign-in error through its auth handler
+                    Toast.makeText(context, "Google Drive sign-in failed: ${result.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -154,63 +117,42 @@ class MenuFragment : Fragment() {
 
     private fun signOutFromGoogleDrive() {
         lifecycleScope.launch {
-            when (val result = googleDriveService.signOut()) {
+            when (val result = menuViewModel.signOut()) {
                 is GoogleDriveResult.Success -> {
                     Toast.makeText(context, "Signed out from Google Drive", Toast.LENGTH_SHORT).show()
                     updateUIState()
-
-                    // MainActivity will handle the sign-out through its auth handler
-
-                    updateMusicCount()
+                    menuViewModel.updateMusicCount()
                 }
                 is GoogleDriveResult.Error -> {
-                    Toast.makeText(
-                        context,
-                        "Error during sign out: ${result.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(context, "Error during sign out: ${result.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
 
     private fun selectDifferentAccount() {
-        // Sign out first, then sign in again to show account picker
         lifecycleScope.launch {
-            when (val result = googleDriveService.signOut()) {
+            when (val result = menuViewModel.signOut()) {
                 is GoogleDriveResult.Success -> {
-                    // Small delay to ensure sign out is complete
                     kotlinx.coroutines.delay(500)
                     signInToGoogleDrive()
                 }
                 is GoogleDriveResult.Error -> {
-                    Toast.makeText(
-                        context,
-                        "Error selecting account: ${result.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(context, "Error selecting account: ${result.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
 
     private fun refreshGoogleDriveMusic() {
-        if (!googleDriveService.isSignedIn()) {
-            Toast.makeText(context, "Please sign in to Google Drive first", Toast.LENGTH_SHORT)
-                .show()
+        if (menuViewModel.isSignedIn.value != true) {
+            Toast.makeText(context, "Please sign in to Google Drive first", Toast.LENGTH_SHORT).show()
             return
         }
 
         lifecycleScope.launch {
-            try {
-                Toast.makeText(context, "Refreshing Google Drive music...", Toast.LENGTH_SHORT)
-                    .show()
-                Toast.makeText(context, "Use the main menu to refresh Google Drive music", Toast.LENGTH_SHORT).show()
-                updateMusicCount()
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error refreshing music: ${e.message}", Toast.LENGTH_LONG)
-                    .show()
-            }
+            Toast.makeText(context, "Refreshing Google Drive music...", Toast.LENGTH_SHORT).show()
+            (activity as? MainActivity)?.refreshGoogleDriveMusic()
         }
     }
 

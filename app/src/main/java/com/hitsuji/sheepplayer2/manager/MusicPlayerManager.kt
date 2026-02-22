@@ -1,14 +1,15 @@
 package com.hitsuji.sheepplayer2.manager
 
-import com.hitsuji.sheepplayer2.MusicPlayer
 import com.hitsuji.sheepplayer2.Track
+import com.hitsuji.sheepplayer2.interfaces.MusicPlayerInterface
+import com.hitsuji.sheepplayer2.interfaces.PlaybackManagerInterface
 import com.hitsuji.sheepplayer2.interfaces.PlaybackStateListener
 
-class MusicPlayerManager(private val musicPlayer: MusicPlayer) {
-    var currentPlayingTrack: Track? = null
+class MusicPlayerManager(private val musicPlayer: MusicPlayerInterface) : PlaybackManagerInterface {
+    override var currentPlayingTrack: Track? = null
         private set
 
-    var isPlaying: Boolean = false
+    override var isPlaying: Boolean = false
         private set
 
     init {
@@ -48,25 +49,25 @@ class MusicPlayerManager(private val musicPlayer: MusicPlayer) {
     private var onPlaybackStateChangeListener: (() -> Unit)? = null
     private var onPlaybackCompletionListener: ((Track) -> Unit)? = null
 
-    fun setOnPlaybackStateChangeListener(listener: () -> Unit) {
+    override fun setOnPlaybackStateChangeListener(listener: () -> Unit) {
         onPlaybackStateChangeListener = listener
     }
 
-    fun setOnPlaybackCompletionListener(listener: (Track) -> Unit) {
+    override fun setOnPlaybackCompletionListener(listener: (Track) -> Unit) {
         onPlaybackCompletionListener = listener
     }
 
-    fun playTrack(track: Track) {
+    override fun playTrack(track: Track) {
         currentPlayingTrack = track
         isPlaying = true
         musicPlayer.loadTrack(track, autoPlay = true)
     }
 
-    fun syncPlaybackState() {
+    override fun syncPlaybackState() {
         isPlaying = musicPlayer.isPlaying()
     }
 
-    fun togglePlayback(): Boolean {
+    override fun togglePlayback(): Boolean {
         return if (isPlaying) {
             musicPlayer.pause()
         } else {
@@ -84,19 +85,19 @@ class MusicPlayerManager(private val musicPlayer: MusicPlayer) {
         }
     }
 
-    fun stopPlayback() {
+    override fun stopPlayback() {
         musicPlayer.stop()
     }
 
-    fun getCurrentPosition(): Int {
+    override fun getCurrentPosition(): Int {
         return musicPlayer.getCurrentPosition()
     }
 
-    fun getDuration(): Int {
+    override fun getDuration(): Int {
         return musicPlayer.getDuration()
     }
 
-    fun release() {
+    override fun release() {
         musicPlayer.release()
     }
 }

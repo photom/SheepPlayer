@@ -4,16 +4,14 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.hitsuji.sheepplayer2.Artist
+import com.hitsuji.sheepplayer2.domain.usecase.GetMusicLibraryUseCase
 import com.hitsuji.sheepplayer2.interfaces.FragmentNotifier
-import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
-import com.hitsuji.sheepplayer2.interfaces.MusicRepositoryInterface
 import com.hitsuji.sheepplayer2.service.MetadataLoadingService
 import kotlinx.coroutines.launch
 
 class MusicDataHandler(
     private val context: Context,
-    private val musicRepository: MusicRepositoryInterface,
-    private val googleDriveService: GoogleDriveServiceInterface,
+    private val getMusicLibraryUseCase: GetMusicLibraryUseCase,
     private val lifecycleScope: LifecycleCoroutineScope,
     private val fragmentNotifier: FragmentNotifier
 ) {
@@ -37,7 +35,8 @@ class MusicDataHandler(
     fun loadLocalMusicData() {
         lifecycleScope.launch {
             try {
-                val artists = musicRepository.loadMusicData()
+                // GetMusicLibraryUseCase handles merging local and cached remote data
+                val artists = getMusicLibraryUseCase()
                 allArtists.clear()
                 allArtists.addAll(artists)
                 
@@ -61,17 +60,17 @@ class MusicDataHandler(
         Log.d("MusicDataHandler", "*** refreshGoogleDriveMusic() called ***")
         lifecycleScope.launch {
             try {
-                // Load local music first
+                // Initial load from whatever is currently available (use case handles this)
+                val artists = getMusicLibraryUseCase()
                 allArtists.clear()
-                val localArtists = musicRepository.loadMusicData()
-                allArtists.addAll(localArtists)
+                allArtists.addAll(artists)
 
-                Log.d("MusicDataHandler", "Loaded ${localArtists.size} local artists")
+                Log.d("MusicDataHandler", "Current library has ${allArtists.size} artists")
 
-                // Notify UI with local music first
+                // Notify UI with current music first
                 fragmentNotifier.notifyDataLoaded()
 
-                // Start the metadata loading service
+                // Start the metadata loading service to fetch fresh remote data
                 Log.d("MusicDataHandler", "*** Starting metadata loading service ***")
                 MetadataLoadingService.startService(context)
 
@@ -85,38 +84,22 @@ class MusicDataHandler(
     fun updateWithGoogleDriveData() {
         lifecycleScope.launch {
             try {
-                val googleDriveArtists = googleDriveService.getLatestGoogleDriveArtists()
-                Log.d("MusicDataHandler", "Got latest cached data: ${googleDriveArtists.size} artists")
+                // Refresh data using the use case (it will pick up newly cached remote data)
+                val updatedArtists = getMusicLibraryUseCase()
+                
+                allArtists.clear()
+                allArtists.addAll(updatedArtists)
 
-                if (googleDriveArtists.isNotEmpty()) {
-                    // Remove existing Google Drive tracks (identified by googleDriveFileId)
-                    val localOnlyArtists = allArtists.map { artist ->
-                        artist.copy(
-                            albums = artist.albums.map { album ->
-                                album.copy(
-                                    tracks = album.tracks.filter { track ->
-                                        track.googleDriveFileId == null
-                                    }.toMutableList()
-                                )
-                            }.filter { it.tracks.isNotEmpty() }.toMutableList()
-                        )
-                    }.filter { it.albums.isNotEmpty() }.toMutableList()
+                // Notify fragments about data update
+                fragmentNotifier.notifyDataLoaded()
+                
+                val totalTracks = allArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
+                Log.d("MusicDataHandler", "Updated music library via Use Case: ${allArtists.size} artists, $totalTracks tracks")
+                
+                // We don't have the specific Google Drive count easily here without filtering, 
+                // but the Use Case has done the heavy lifting of merging.
+                callback?.onGoogleDriveMusicLoaded(updatedArtists.filter { it.albums.any { it.tracks.any { it.googleDriveFileId != null } } })
 
-                    // Merge local and updated Google Drive music
-                    allArtists.clear()
-                    allArtists.addAll(localOnlyArtists)
-                    allArtists.addAll(googleDriveArtists)
-
-                    // Notify fragments about data update on main thread
-                    fragmentNotifier.notifyDataLoaded()
-                    callback?.onGoogleDriveMusicLoaded(googleDriveArtists)
-
-                    val totalTracks = allArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
-                    val googleDriveTracks = googleDriveArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
-                    Log.d("MusicDataHandler", "Updated music library: ${allArtists.size} artists, $totalTracks tracks ($googleDriveTracks from Google Drive)")
-                } else {
-                    Log.d("MusicDataHandler", "No Google Drive data available yet")
-                }
             } catch (e: Exception) {
                 Log.e("MusicDataHandler", "Error updating with latest Google Drive data", e)
                 callback?.onMusicLoadError("Error updating Google Drive data: ${e.message}")

@@ -2,12 +2,17 @@ package com.hitsuji.sheepplayer2.handlers
 
 import android.util.Log
 import androidx.lifecycle.LifecycleCoroutineScope
-import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
+import androidx.appcompat.app.AppCompatActivity
+import com.hitsuji.sheepplayer2.domain.usecase.IsSignedInUseCase
+import com.hitsuji.sheepplayer2.domain.usecase.SignInUseCase
+import com.hitsuji.sheepplayer2.domain.usecase.SignOutUseCase
 import com.hitsuji.sheepplayer2.service.GoogleDriveResult
 import kotlinx.coroutines.launch
 
 class GoogleDriveAuthHandler(
-    private val googleDriveService: GoogleDriveServiceInterface,
+    private val signInUseCase: SignInUseCase,
+    private val signOutUseCase: SignOutUseCase,
+    private val isSignedInUseCase: IsSignedInUseCase,
     private val lifecycleScope: LifecycleCoroutineScope
 ) {
     
@@ -24,9 +29,9 @@ class GoogleDriveAuthHandler(
         this.callback = callback
     }
     
-    fun signIn() {
+    fun signIn(activity: AppCompatActivity) {
         lifecycleScope.launch {
-            when (val result = googleDriveService.signIn()) {
+            when (val result = signInUseCase(activity)) {
                 is GoogleDriveResult.Success -> {
                     callback?.onSignInSuccess()
                 }
@@ -39,7 +44,7 @@ class GoogleDriveAuthHandler(
     
     fun signOut() {
         lifecycleScope.launch {
-            when (val result = googleDriveService.signOut()) {
+            when (val result = signOutUseCase()) {
                 is GoogleDriveResult.Success -> {
                     callback?.onSignOutSuccess()
                 }
@@ -52,17 +57,12 @@ class GoogleDriveAuthHandler(
     
     fun checkExistingSignIn(): Boolean {
         return try {
-            val isSignedIn = googleDriveService.isSignedIn()
-            val currentAccount = googleDriveService.getCurrentAccount()
-
-            Log.d("GoogleDriveAuth", "Checking sign-in: isSignedIn=$isSignedIn, account=${currentAccount?.email}")
+            val isSignedIn = isSignedInUseCase()
+            Log.d("GoogleDriveAuth", "Checking sign-in: isSignedIn=$isSignedIn")
 
             if (isSignedIn) {
-                // Trigger sign-in success callback to start Google Drive refresh
-                Log.d("GoogleDriveAuth", "Already signed in - triggering onSignInSuccess callback")
                 callback?.onSignInSuccess()
             }
-
             isSignedIn
         } catch (e: Exception) {
             Log.w("GoogleDriveAuth", "Error checking sign-in status", e)

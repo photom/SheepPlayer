@@ -2,6 +2,7 @@ package com.hitsuji.sheepplayer2.service
 
 import android.content.Context
 import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
@@ -93,11 +94,11 @@ class GoogleDriveService(private val context: Context) : GoogleDriveServiceInter
     class GoogleDriveServiceException(message: String, cause: Throwable? = null) :
         Exception(message, cause)
 
-    override suspend fun signIn(): GoogleDriveResult<Unit> {
+    override suspend fun signIn(activity: AppCompatActivity): GoogleDriveResult<Unit> {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Delegating sign-in to authenticator")
-                val result = authenticator.signIn()
+                val result = authenticator.signIn(activity)
                 
                 return@withContext when (result) {
                     is GoogleDriveResult.Success -> {

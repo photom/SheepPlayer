@@ -11,10 +11,12 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.hitsuji.sheepplayer2.Artist
 import com.hitsuji.sheepplayer2.MainActivity
 import com.hitsuji.sheepplayer2.R
+import com.hitsuji.sheepplayer2.SheepApplication
+import com.hitsuji.sheepplayer2.domain.model.LibraryUpdateEvent
+import com.hitsuji.sheepplayer2.interfaces.MusicLibraryRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,19 +30,8 @@ import kotlin.math.max
  * Foreground service for loading Google Drive music metadata with real-time UI updates.
  * 
  * This service runs in the foreground to ensure metadata loading continues even when
- * the app is backgrounded. It provides progress updates via local broadcasts and
- * maintains a persistent notification during operation.
- * 
- * Key Features:
- * - Foreground service with persistent notification
- * - Real-time progress updates via LocalBroadcastManager
- * - Throttled broadcasts to prevent UI flooding
- * - Automatic service termination on completion/error
- * - Coroutine-based asynchronous processing
- * 
- * @author SheepPlayer Team
- * @version 2.0
- * @since 1.0
+ * the app is backgrounded. It provides progress updates via a shared repository
+ * and maintains a persistent notification during operation.
  */
 class MetadataLoadingService : Service() {
     
@@ -56,26 +47,8 @@ class MetadataLoadingService : Service() {
         const val ACTION_START_LOADING = "com.hitsuji.sheepplayer2.START_LOADING"
         const val ACTION_STOP_LOADING = "com.hitsuji.sheepplayer2.STOP_LOADING"
         
-        // Broadcast actions for UI communication
-        const val BROADCAST_METADATA_UPDATE = "com.hitsuji.sheepplayer2.METADATA_UPDATE"
-        const val BROADCAST_LOADING_COMPLETE = "com.hitsuji.sheepplayer2.LOADING_COMPLETE"
-        const val BROADCAST_LOADING_ERROR = "com.hitsuji.sheepplayer2.LOADING_ERROR"
-        
-        // Broadcast extra keys
-        const val EXTRA_ARTISTS_COUNT = "artists_count"
-        const val EXTRA_TRACKS_COUNT = "tracks_count"
-        const val EXTRA_ERROR_MESSAGE = "error_message"
-        const val EXTRA_PROGRESS = "progress"
-        const val EXTRA_TOTAL = "total"
-        const val EXTRA_ARTISTS_DATA = "artists_data"
-        
         /**
          * Starts the metadata loading service.
-         * 
-         * This method properly handles foreground service startup for Android O+
-         * and ensures the service runs in the foreground to prevent termination.
-         * 
-         * @param context Android context for service operations
          */
         fun startService(context: Context) {
             val intent = Intent(context, MetadataLoadingService::class.java).apply {
@@ -96,8 +69,6 @@ class MetadataLoadingService : Service() {
         
         /**
          * Stops the metadata loading service.
-         * 
-         * @param context Android context for service operations
          */
         fun stopService(context: Context) {
             val intent = Intent(context, MetadataLoadingService::class.java).apply {
@@ -117,7 +88,8 @@ class MetadataLoadingService : Service() {
     private lateinit var googleDriveService: GoogleDriveService
     private lateinit var notificationManager: NotificationManager
     private lateinit var progressTracker: LoadingProgressTracker
-    private lateinit var broadcastHelper: BroadcastHelper
+    private lateinit var updateHelper: UpdateHelper
+    private lateinit var musicLibraryRepository: MusicLibraryRepository
     
     // Coroutine management
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -172,42 +144,27 @@ class MetadataLoadingService : Service() {
     }
     
     /**
-     * Manages broadcast operations with consistent logging.
+     * Manages update operations via repository.
      */
-    private inner class BroadcastHelper {
+    private inner class UpdateHelper {
         fun sendMetadataUpdate(artists: List<Artist>, progress: Int, total: Int) {
-            val tracksCount = artists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
-            
-            Log.d(TAG, "Broadcasting update: ${artists.size} artists, $tracksCount tracks, $progress/$total")
-            
-            val intent = Intent(BROADCAST_METADATA_UPDATE).apply {
-                putExtra(EXTRA_ARTISTS_COUNT, artists.size)
-                putExtra(EXTRA_TRACKS_COUNT, tracksCount)
-                putExtra(EXTRA_PROGRESS, progress)
-                putExtra(EXTRA_TOTAL, total)
+            serviceScope.launch {
+                musicLibraryRepository.emitUpdate(
+                    LibraryUpdateEvent.Progress(artists, progress, total)
+                )
             }
-            
-            LocalBroadcastManager.getInstance(this@MetadataLoadingService).sendBroadcast(intent)
-            
-            // Trigger MainActivity to refresh with latest data
-            val refreshIntent = Intent("com.hitsuji.sheepplayer2.RELOAD_GOOGLE_DRIVE_DATA")
-            LocalBroadcastManager.getInstance(this@MetadataLoadingService).sendBroadcast(refreshIntent)
-            
-            Log.d(TAG, "Metadata update broadcast sent successfully")
         }
         
-        fun sendLoadingComplete() {
-            Log.d(TAG, "Broadcasting loading complete")
-            val intent = Intent(BROADCAST_LOADING_COMPLETE)
-            LocalBroadcastManager.getInstance(this@MetadataLoadingService).sendBroadcast(intent)
+        fun sendLoadingComplete(artists: List<Artist>) {
+            serviceScope.launch {
+                musicLibraryRepository.emitUpdate(LibraryUpdateEvent.Success(artists))
+            }
         }
         
         fun sendLoadingError(message: String) {
-            Log.e(TAG, "Broadcasting loading error: $message")
-            val intent = Intent(BROADCAST_LOADING_ERROR).apply {
-                putExtra(EXTRA_ERROR_MESSAGE, message)
+            serviceScope.launch {
+                musicLibraryRepository.emitUpdate(LibraryUpdateEvent.Error(message))
             }
-            LocalBroadcastManager.getInstance(this@MetadataLoadingService).sendBroadcast(intent)
         }
     }
     
@@ -216,11 +173,13 @@ class MetadataLoadingService : Service() {
         Log.d(TAG, "MetadataLoadingService created")
         
         try {
-            // Initialize service dependencies
+            val app = application as SheepApplication
+            musicLibraryRepository = app.container.musicLibraryRepository
+            
             googleDriveService = GoogleDriveService(this)
             notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             progressTracker = LoadingProgressTracker()
-            broadcastHelper = BroadcastHelper()
+            updateHelper = UpdateHelper()
             
             createNotificationChannel()
             Log.d(TAG, "Service dependencies initialized successfully")
@@ -244,15 +203,12 @@ class MetadataLoadingService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling service command", e)
-            broadcastHelper.sendLoadingError("Service initialization failed: ${e.message}")
+            updateHelper.sendLoadingError("Service initialization failed: ${e.message}")
             stopSelf()
             START_NOT_STICKY
         }
     }
     
-    /**
-     * Handles the start loading command.
-     */
     private fun handleStartLoading(): Int {
         return if (!isLoading.getAndSet(true)) {
             Log.d(TAG, "Starting metadata loading service")
@@ -265,9 +221,6 @@ class MetadataLoadingService : Service() {
         }
     }
     
-    /**
-     * Handles the stop loading command.
-     */
     private fun handleStopLoading(): Int {
         Log.d(TAG, "Stopping metadata loading service")
         stopMetadataLoading()
@@ -289,9 +242,6 @@ class MetadataLoadingService : Service() {
         }
     }
     
-    /**
-     * Creates the notification channel for metadata loading (Android O+).
-     */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -314,9 +264,6 @@ class MetadataLoadingService : Service() {
         }
     }
     
-    /**
-     * Starts the service in foreground mode with initial notification.
-     */
     private fun startForegroundService() {
         try {
             val notification = createNotification("Initializing metadata loading...", 0, 0)
@@ -324,19 +271,11 @@ class MetadataLoadingService : Service() {
             Log.d(TAG, "Foreground service started successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start foreground service", e)
-            broadcastHelper.sendLoadingError("Failed to start foreground service")
+            updateHelper.sendLoadingError("Failed to start foreground service")
             stopSelf()
         }
     }
     
-    /**
-     * Creates a notification with progress information.
-     * 
-     * @param text The notification text to display
-     * @param progress Current progress value
-     * @param total Total expected items (0 for indeterminate)
-     * @return Configured notification
-     */
     private fun createNotification(text: String, progress: Int, total: Int): Notification {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -357,10 +296,9 @@ class MetadataLoadingService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
         
-        // Configure progress bar
         if (total > 0) {
             builder.setProgress(total, progress, false)
-            val percentage = if (total > 0) (progress * 100) / total else 0
+            val percentage = (progress * 100) / total
             builder.setSubText("$percentage% complete")
         } else {
             builder.setProgress(0, 0, true)
@@ -369,9 +307,6 @@ class MetadataLoadingService : Service() {
         return builder.build()
     }
     
-    /**
-     * Updates the existing notification with new progress information.
-     */
     private fun updateNotification(text: String, progress: Int, total: Int) {
         try {
             val notification = createNotification(text, progress, total)
@@ -381,21 +316,12 @@ class MetadataLoadingService : Service() {
         }
     }
     
-    /**
-     * Starts the metadata loading process in a coroutine.
-     * 
-     * This method handles the complete metadata loading workflow:
-     * 1. Initiates sequential loading from GoogleDriveService
-     * 2. Processes progress updates with throttling
-     * 3. Updates notification and broadcasts progress
-     * 4. Handles errors and completion
-     */
     private fun startMetadataLoading() {
         Log.d(TAG, "Initiating metadata loading process")
         
         if (!googleDriveService.isSignedIn()) {
             Log.e(TAG, "Cannot start loading: not signed in to Google Drive")
-            broadcastHelper.sendLoadingError("Please sign in to Google Drive first")
+            updateHelper.sendLoadingError("Please sign in to Google Drive first")
             stopSelf()
             return
         }
@@ -407,22 +333,19 @@ class MetadataLoadingService : Service() {
                 processMetadataSequentially()
             } catch (e: Exception) {
                 Log.e(TAG, "Critical error in metadata loading", e)
-                broadcastHelper.sendLoadingError(e.message ?: "Failed to load metadata")
+                updateHelper.sendLoadingError(e.message ?: "Failed to load metadata")
                 stopSelf()
             }
         }
     }
     
-    /**
-     * Processes metadata loading with sequential updates.
-     */
     private suspend fun processMetadataSequentially() {
         Log.d(TAG, "Starting sequential metadata processing")
         
         googleDriveService.loadMusicFromGoogleDriveSequentially()
             .catch { exception ->
                 Log.e(TAG, "Flow error during metadata loading", exception)
-                broadcastHelper.sendLoadingError(exception.message ?: "Loading flow interrupted")
+                updateHelper.sendLoadingError(exception.message ?: "Loading flow interrupted")
                 stopSelf()
             }
             .collect { result ->
@@ -432,54 +355,34 @@ class MetadataLoadingService : Service() {
                 }
             }
         
-        // Loading completed successfully
         Log.d(TAG, "Metadata loading completed successfully")
         updateNotification("Loading complete!", progressTracker.processedFiles, progressTracker.totalFiles)
         
-        // Send final metadata update with complete artist list (bypass throttling)
         val finalArtists = googleDriveService.getLatestGoogleDriveArtists()
-        Log.d(TAG, "Broadcasting final complete data: ${finalArtists.size} artists")
-        broadcastHelper.sendMetadataUpdate(finalArtists, progressTracker.processedFiles, progressTracker.totalFiles)
+        updateHelper.sendLoadingComplete(finalArtists)
         
-        broadcastHelper.sendLoadingComplete()
-        
-        // Auto-stop after a short delay to show completion
         kotlinx.coroutines.delay(1000)
         stopSelf()
     }
     
-    /**
-     * Handles successful loading progress update.
-     */
     private fun handleLoadingSuccess(artists: List<Artist>) {
         progressTracker.incrementProcessed()
         
-        // Always update notification with latest progress
         val progressMessage = progressTracker.getProgressMessage()
         updateNotification(progressMessage, progressTracker.processedFiles, progressTracker.totalFiles)
         
-        // Throttle broadcasts to prevent UI flooding
         if (progressTracker.shouldBroadcast()) {
-            Log.d(TAG, "Broadcasting progress: ${artists.size} artists, ${progressTracker.processedFiles} processed")
-            broadcastHelper.sendMetadataUpdate(artists, progressTracker.processedFiles, progressTracker.totalFiles)
-        } else {
-            Log.v(TAG, "Progress throttled: ${progressTracker.processedFiles} processed")
+            updateHelper.sendMetadataUpdate(artists, progressTracker.processedFiles, progressTracker.totalFiles)
         }
     }
     
-    /**
-     * Handles loading errors.
-     */
     private fun handleLoadingError(result: GoogleDriveResult.Error<List<Artist>>) {
         Log.e(TAG, "Loading error: ${result.message}", result.exception)
         updateNotification("Loading failed", 0, 0)
-        broadcastHelper.sendLoadingError(result.message)
+        updateHelper.sendLoadingError(result.message)
         stopSelf()
     }
     
-    /**
-     * Stops the metadata loading process and cleans up resources.
-     */
     private fun stopMetadataLoading() {
         Log.d(TAG, "Stopping metadata loading process")
         isLoading.set(false)
@@ -492,5 +395,4 @@ class MetadataLoadingService : Service() {
             Log.w(TAG, "Error during metadata loading cleanup", e)
         }
     }
-    
 }

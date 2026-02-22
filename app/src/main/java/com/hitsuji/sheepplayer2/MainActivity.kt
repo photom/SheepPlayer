@@ -1,10 +1,6 @@
 package com.hitsuji.sheepplayer2
 
-import android.content.BroadcastReceiver
 import android.content.ComponentCallbacks2
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
@@ -13,7 +9,6 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -26,11 +21,12 @@ import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
 import com.hitsuji.sheepplayer2.interfaces.MusicPlayerInterface
 import com.hitsuji.sheepplayer2.interfaces.MusicRepositoryInterface
 import com.hitsuji.sheepplayer2.interfaces.NavigationController
-import com.hitsuji.sheepplayer2.interfaces.PlaybackStateListener
-import com.hitsuji.sheepplayer2.manager.MusicPlayerManager
-import com.hitsuji.sheepplayer2.repository.MusicRepository
-import com.hitsuji.sheepplayer2.service.GoogleDriveService
-import com.hitsuji.sheepplayer2.service.MetadataLoadingService
+import com.hitsuji.sheepplayer2.interfaces.PlaybackManagerInterface
+import com.hitsuji.sheepplayer2.interfaces.MusicLibraryRepository
+import com.hitsuji.sheepplayer2.domain.model.LibraryUpdateEvent
+import com.hitsuji.sheepplayer2.domain.usecase.GetMusicLibraryUseCase
+import com.hitsuji.sheepplayer2.domain.usecase.PlayTrackUseCase
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier {
 
@@ -39,8 +35,11 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
     // Core dependencies - injected via interfaces (DIP)
     private lateinit var musicRepository: MusicRepositoryInterface
     private lateinit var musicPlayer: MusicPlayerInterface
-    private lateinit var musicPlayerManager: MusicPlayerManager
+    private lateinit var musicPlayerManager: PlaybackManagerInterface
     private lateinit var googleDriveService: GoogleDriveServiceInterface
+    private lateinit var playTrackUseCase: PlayTrackUseCase
+    private lateinit var getMusicLibraryUseCase: GetMusicLibraryUseCase
+    private lateinit var musicLibraryRepository: MusicLibraryRepository
 
     // Specialized handlers (SRP)
     private lateinit var permissionHandler: PermissionHandler
@@ -49,7 +48,6 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
 
     // State management
     private var isGoogleDriveLoggedIn = false
-    private var metadataLoadingReceiver: BroadcastReceiver? = null
 
     // Album playback state
     var currentPlayingAlbum: Album? = null
@@ -74,10 +72,19 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize dependencies first, before view inflation
-        initializeDependencies()
+        // Initialize dependencies via AppContainer
+        val appContainer = (application as SheepApplication).container
+        musicRepository = appContainer.musicRepository
+        googleDriveService = appContainer.googleDriveService
+        musicPlayer = appContainer.musicPlayer
+        musicPlayerManager = appContainer.musicPlayerManager
+        playTrackUseCase = appContainer.playTrackUseCase
+        getMusicLibraryUseCase = appContainer.getMusicLibraryUseCase
+        musicLibraryRepository = appContainer.musicLibraryRepository
+
         initializeHandlers()
         setupCallbacks()
+        collectLibraryUpdates()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -96,30 +103,21 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
         navView.setupWithNavController(navController)
     }
 
-    private fun initializeDependencies() {
-        // Repository layer
-        musicRepository = MusicRepository(this)
-        googleDriveService = GoogleDriveService(this)
-
-        // Player layer
-        musicPlayer = MusicPlayer(this).apply {
-            setGoogleDriveService(googleDriveService)
-        }
-        musicPlayerManager = MusicPlayerManager(musicPlayer as MusicPlayer)
-    }
-
     private fun initializeHandlers() {
         permissionHandler = PermissionHandler(this, requestPermissionLauncher)
+        
         musicDataHandler = MusicDataHandler(
-            this, musicRepository, googleDriveService, lifecycleScope, this
+            this, getMusicLibraryUseCase, lifecycleScope, this
         )
-        googleDriveAuthHandler = GoogleDriveAuthHandler(googleDriveService, lifecycleScope)
-
-        setupMetadataLoadingReceiver()
+        googleDriveAuthHandler = GoogleDriveAuthHandler(
+            (application as SheepApplication).container.signInUseCase,
+            (application as SheepApplication).container.signOutUseCase,
+            (application as SheepApplication).container.isSignedInUseCase,
+            lifecycleScope
+        )
     }
 
     private fun setupCallbacks() {
-        // Permission handler callbacks
         permissionHandler.setCallback(object : PermissionHandler.PermissionCallback {
             override fun onPermissionGranted() {
                 musicDataHandler.loadLocalMusicData()
@@ -134,34 +132,19 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
             }
         })
 
-        // Music data handler callbacks
         musicDataHandler.setCallback(object : MusicDataHandler.MusicDataCallback {
-            override fun onLocalMusicLoaded(artists: List<Artist>) {
-                // Handled by FragmentNotifier interface
-            }
-
+            override fun onLocalMusicLoaded(artists: List<Artist>) {}
             override fun onGoogleDriveMusicLoaded(artists: List<Artist>) {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Google Drive music loaded",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this@MainActivity, "Google Drive music loaded", Toast.LENGTH_SHORT).show()
             }
-
             override fun onMusicLoadError(message: String) {
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
             }
-
             override fun onNoMusicFound() {
-                Toast.makeText(
-                    this@MainActivity,
-                    "No music files found.",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this@MainActivity, "No music files found.", Toast.LENGTH_SHORT).show()
             }
         })
 
-        // Google Drive auth callbacks
         googleDriveAuthHandler.setCallback(object : GoogleDriveAuthHandler.AuthCallback {
             override fun onSignInSuccess() {
                 isGoogleDriveLoggedIn = true
@@ -177,30 +160,40 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
             override fun onSignOutSuccess() {
                 isGoogleDriveLoggedIn = false
                 invalidateOptionsMenu()
-                Toast.makeText(
-                    this@MainActivity,
-                    "Logged out from Google Drive",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this@MainActivity, "Logged out from Google Drive", Toast.LENGTH_SHORT).show()
                 musicDataHandler.loadLocalMusicData()
             }
 
             override fun onSignOutError(message: String, exception: Throwable?) {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Error logging out: $message",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this@MainActivity, "Error logging out: $message", Toast.LENGTH_SHORT).show()
             }
         })
 
-        // Music player callbacks
         musicPlayerManager.setOnPlaybackStateChangeListener {
             notifyPlaybackStateChanged()
         }
 
         musicPlayerManager.setOnPlaybackCompletionListener { completedTrack ->
             handleTrackCompletion(completedTrack)
+        }
+    }
+
+    private fun collectLibraryUpdates() {
+        lifecycleScope.launch {
+            musicLibraryRepository.libraryUpdates.collect { event ->
+                when (event) {
+                    is LibraryUpdateEvent.Progress -> {
+                        musicDataHandler.updateWithGoogleDriveData()
+                    }
+                    is LibraryUpdateEvent.Success -> {
+                        musicDataHandler.updateWithGoogleDriveData()
+                        Toast.makeText(this@MainActivity, "Google Drive music loaded", Toast.LENGTH_SHORT).show()
+                    }
+                    is LibraryUpdateEvent.Error -> {
+                        Toast.makeText(this@MainActivity, "Error: ${event.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
         }
     }
 
@@ -223,7 +216,9 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
         currentPlayingAlbum = null
         currentAlbumTracks = emptyList()
         currentTrackIndexInAlbum = 0
-        musicPlayerManager.playTrack(track)
+        lifecycleScope.launch {
+            playTrackUseCase(track)
+        }
     }
 
     fun playAlbum(album: Album) {
@@ -231,14 +226,18 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
         currentAlbumTracks = album.tracks.toList()
         currentTrackIndexInAlbum = 0
         if (currentAlbumTracks.isNotEmpty()) {
-            musicPlayerManager.playTrack(currentAlbumTracks[0])
+            lifecycleScope.launch {
+                playTrackUseCase(currentAlbumTracks[0])
+            }
         }
     }
 
     fun playTrackInAlbum(track: Track, trackIndex: Int) {
         if (currentPlayingAlbum != null && currentAlbumTracks.isNotEmpty()) {
             currentTrackIndexInAlbum = trackIndex
-            musicPlayerManager.playTrack(track)
+            lifecycleScope.launch {
+                playTrackUseCase(track)
+            }
         }
     }
 
@@ -258,7 +257,7 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_google_drive_login -> {
-                googleDriveAuthHandler.signIn()
+                googleDriveAuthHandler.signIn(this)
                 true
             }
             R.id.action_google_drive_logout -> {
@@ -279,48 +278,14 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
         menu.findItem(R.id.action_refresh_google_drive).isVisible = isGoogleDriveLoggedIn
     }
 
-    private fun setupMetadataLoadingReceiver() {
-        metadataLoadingReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                when (intent?.action) {
-                    "com.hitsuji.sheepplayer2.RELOAD_GOOGLE_DRIVE_DATA" -> {
-                        musicDataHandler.updateWithGoogleDriveData()
-                    }
-                    MetadataLoadingService.BROADCAST_LOADING_COMPLETE -> {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Google Drive music loaded",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    MetadataLoadingService.BROADCAST_LOADING_ERROR -> {
-                        val error = intent.getStringExtra(MetadataLoadingService.EXTRA_ERROR_MESSAGE)
-                            ?: "Unknown error"
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Error loading Google Drive music: $error",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-            }
-        }
-
-        val filter = IntentFilter().apply {
-            addAction(MetadataLoadingService.BROADCAST_METADATA_UPDATE)
-            addAction(MetadataLoadingService.BROADCAST_LOADING_COMPLETE)
-            addAction(MetadataLoadingService.BROADCAST_LOADING_ERROR)
-            addAction("com.hitsuji.sheepplayer2.RELOAD_GOOGLE_DRIVE_DATA")
-        }
-        LocalBroadcastManager.getInstance(this).registerReceiver(metadataLoadingReceiver!!, filter)
-    }
-
     private fun handleTrackCompletion(completedTrack: Track) {
         if (currentPlayingAlbum != null && currentAlbumTracks.isNotEmpty()) {
             val nextIndex = currentTrackIndexInAlbum + 1
             if (nextIndex < currentAlbumTracks.size) {
                 currentTrackIndexInAlbum = nextIndex
-                musicPlayerManager.playTrack(currentAlbumTracks[nextIndex])
+                lifecycleScope.launch {
+                    playTrackUseCase(currentAlbumTracks[nextIndex])
+                }
             } else {
                 currentPlayingAlbum = null
                 currentAlbumTracks = emptyList()
@@ -330,18 +295,12 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
     }
 
     private fun notifyFragmentsDataLoaded() {
-        Log.d("MainActivity", "*** notifyFragmentsDataLoaded() called ***")
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main)
-        var fragmentsNotified = 0
         navHostFragment?.childFragmentManager?.fragments?.forEach { fragment ->
-            Log.d("MainActivity", "Found fragment: ${fragment::class.simpleName}")
             if (fragment is com.hitsuji.sheepplayer2.ui.tracks.TracksFragment) {
-                Log.d("MainActivity", "*** Calling onMusicDataLoaded() on TracksFragment ***")
                 fragment.onMusicDataLoaded()
-                fragmentsNotified++
             }
         }
-        Log.d("MainActivity", "*** Notified $fragmentsNotified TracksFragment(s) ***")
     }
 
     private fun notifyPlayingFragmentStateChanged() {
@@ -367,9 +326,6 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
     override fun onDestroy() {
         super.onDestroy()
         musicPlayerManager.release()
-        metadataLoadingReceiver?.let {
-            LocalBroadcastManager.getInstance(this).unregisterReceiver(it)
-        }
     }
 
     override fun onLowMemory() {

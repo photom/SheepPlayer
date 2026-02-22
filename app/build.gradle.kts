@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -53,9 +52,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         viewBinding = true
     }
@@ -78,6 +74,12 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -88,17 +90,17 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
+    implementation("com.github.bumptech.glide:glide:5.0.5")
 
     // Google Drive API and Authentication
-    implementation("com.google.android.gms:play-services-auth:21.4.0")
-    implementation("com.google.apis:google-api-services-drive:v3-rev20240914-2.0.0")
-    implementation("com.google.api-client:google-api-client-android:2.7.0")
-    implementation("com.google.api-client:google-api-client-gson:2.7.0")
-    implementation("com.google.http-client:google-http-client-gson:1.45.1")
-    implementation("com.google.http-client:google-http-client:1.45.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+    implementation("com.google.android.gms:play-services-auth:21.5.1")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20251210-2.0.0")
+    implementation("com.google.api-client:google-api-client-android:2.8.1")
+    implementation("com.google.api-client:google-api-client-gson:2.8.1")
+    implementation("com.google.http-client:google-http-client-gson:2.1.0")
+    implementation("com.google.http-client:google-http-client:2.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     
     // Audio metadata extraction
     implementation("net.jthink:jaudiotagger:3.0.1")

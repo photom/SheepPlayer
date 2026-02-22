@@ -12,7 +12,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.services.drive.DriveScopes
 import com.hitsuji.sheepplayer2.service.GoogleDriveResult
-import com.hitsuji.sheepplayer2.service.GoogleDriveServiceException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import android.app.Activity
@@ -23,10 +22,10 @@ import android.app.Activity
  * This class is responsible for all authentication-related operations
  * including sign-in, sign-out, and account state management.
  * 
- * @param context Android context for Google Sign-In operations
+ * @param context Android application context for Google Sign-In operations
  * 
  * @author SheepPlayer Team
- * @version 1.0
+ * @version 2.0
  * @since 1.0
  */
 class GoogleDriveAuthenticator(private val context: Context) {
@@ -37,12 +36,10 @@ class GoogleDriveAuthenticator(private val context: Context) {
     
     private val googleSignInClient: GoogleSignInClient
     private var currentAccount: GoogleSignInAccount? = null
-    private var signInLauncher: ActivityResultLauncher<android.content.Intent>? = null
     
     init {
         googleSignInClient = GoogleSignIn.getClient(context, createSignInOptions())
         Log.d(TAG, "Google Sign-In client created successfully")
-        initializeSignInLauncher()
         checkExistingAccount()
     }
     
@@ -54,27 +51,6 @@ class GoogleDriveAuthenticator(private val context: Context) {
             .requestEmail()
             .requestScopes(Scope(DriveScopes.DRIVE_READONLY))
             .build()
-    }
-    
-    /**
-     * Initializes the sign-in result launcher if context is an AppCompatActivity.
-     */
-    private fun initializeSignInLauncher() {
-        if (context is AppCompatActivity) {
-            try {
-                signInLauncher = context.activityResultRegistry.register(
-                    "google_sign_in_${System.currentTimeMillis()}",
-                    ActivityResultContracts.StartActivityForResult()
-                ) { result ->
-                    Log.d(TAG, "Sign-in result received: ${result.resultCode}")
-                }
-                Log.d(TAG, "Sign-in launcher initialized")
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not initialize sign-in launcher", e)
-            }
-        } else {
-            Log.w(TAG, "Context is not AppCompatActivity, cannot register launcher")
-        }
     }
     
     /**
@@ -97,9 +73,10 @@ class GoogleDriveAuthenticator(private val context: Context) {
     /**
      * Initiates the Google Drive sign-in process.
      * 
+     * @param activity The activity from which to launch the sign-in UI
      * @return GoogleDriveResult indicating success or failure of sign-in
      */
-    suspend fun signIn(): GoogleDriveResult<Boolean> {
+    suspend fun signIn(activity: AppCompatActivity): GoogleDriveResult<Boolean> {
         return try {
             Log.d(TAG, "Starting Google Drive sign-in process")
             
@@ -111,13 +88,8 @@ class GoogleDriveAuthenticator(private val context: Context) {
                 return GoogleDriveResult.Success(true)
             }
             
-            if (signInLauncher == null) {
-                Log.e(TAG, "Sign-in launcher not available - context may not be an Activity")
-                return GoogleDriveResult.Error("Google Drive sign-in failed. Sign-in launcher not available")
-            }
-            
-            // Perform the actual sign-in with suspendCancellableCoroutine
-            signInWithLauncher()
+            // Perform the actual sign-in with temporary launcher
+            signInWithLauncher(activity)
             
         } catch (e: Exception) {
             Log.e(TAG, "Sign-in failed", e)
@@ -126,20 +98,14 @@ class GoogleDriveAuthenticator(private val context: Context) {
     }
     
     /**
-     * Performs sign-in using the activity result launcher with proper coroutine suspension.
+     * Performs sign-in using a temporary activity result launcher.
      */
-    private suspend fun signInWithLauncher(): GoogleDriveResult<Boolean> = suspendCancellableCoroutine { continuation ->
-        if (context !is AppCompatActivity || signInLauncher == null) {
-            Log.e(TAG, "Cannot sign in: context is not AppCompatActivity or launcher is null")
-            continuation.resume(GoogleDriveResult.Error("Sign-in context not available"))
-            return@suspendCancellableCoroutine
-        }
-
+    private suspend fun signInWithLauncher(activity: AppCompatActivity): GoogleDriveResult<Boolean> = suspendCancellableCoroutine { continuation ->
         // Create a temporary launcher for this specific sign-in attempt
-        var tempLauncher: androidx.activity.result.ActivityResultLauncher<android.content.Intent>? = null
+        var tempLauncher: ActivityResultLauncher<android.content.Intent>? = null
         
         try {
-            tempLauncher = context.activityResultRegistry.register(
+            tempLauncher = activity.activityResultRegistry.register(
                 "google_sign_in_temp_${System.currentTimeMillis()}",
                 ActivityResultContracts.StartActivityForResult()
             ) { result ->
@@ -220,7 +186,6 @@ class GoogleDriveAuthenticator(private val context: Context) {
             }
             
             currentAccount = null
-            cleanup()
             
             GoogleDriveResult.Success(Unit)
             
@@ -262,49 +227,10 @@ class GoogleDriveAuthenticator(private val context: Context) {
     }
     
     /**
-     * Processes the sign-in result from the activity.
-     * 
-     * @param resultCode The result code from the sign-in activity
-     * @return GoogleDriveResult indicating the outcome of sign-in processing
-     */
-    suspend fun processSignInResult(resultCode: Int): GoogleDriveResult<Boolean> {
-        return try {
-            Log.d(TAG, "Processing sign-in result with code: $resultCode")
-            
-            when (resultCode) {
-                android.app.Activity.RESULT_OK -> {
-                    val account = GoogleSignIn.getLastSignedInAccount(context)
-                    if (account != null) {
-                        currentAccount = account
-                        Log.d(TAG, "Sign-in successful: ${account.email}")
-                        GoogleDriveResult.Success(true)
-                    } else {
-                        Log.e(TAG, "Sign-in completed but no account found")
-                        GoogleDriveResult.Error("Sign-in completed but no account available")
-                    }
-                }
-                android.app.Activity.RESULT_CANCELED -> {
-                    Log.d(TAG, "Sign-in was cancelled by user")
-                    GoogleDriveResult.Error("Sign-in cancelled by user")
-                }
-                else -> {
-                    Log.e(TAG, "Sign-in failed with unknown result code: $resultCode")
-                    GoogleDriveResult.Error("Sign-in failed with code: $resultCode")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error processing sign-in result", e)
-            GoogleDriveResult.Error("Error processing sign-in: ${e.message}", e)
-        }
-    }
-    
-    /**
-     * Cleans up resources and prepares for destruction.
+     * Cleans up resources.
      */
     fun cleanup() {
         Log.d(TAG, "Cleaning up GoogleDriveAuthenticator")
         currentAccount = null
-        signInLauncher?.unregister()
-        signInLauncher = null
     }
 }

@@ -3,16 +3,9 @@ package com.hitsuji.sheepplayer2
 import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
-import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
 import com.hitsuji.sheepplayer2.interfaces.MusicPlayerInterface
 import com.hitsuji.sheepplayer2.interfaces.PlaybackStateListener
-import com.hitsuji.sheepplayer2.service.GoogleDriveResult
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 
 class MusicPlayer(private val context: Context) : MusicPlayerInterface {
@@ -20,16 +13,11 @@ class MusicPlayer(private val context: Context) : MusicPlayerInterface {
     private var currentTrack: Track? = null
     private var isInitialized = false
     private var shouldAutoPlay = false
-    private var googleDriveService: GoogleDriveServiceInterface? = null
-
+    
     private var playbackStateListener: PlaybackStateListener? = null
 
     override fun setOnPlaybackStateChangeListener(listener: PlaybackStateListener) {
         playbackStateListener = listener
-    }
-
-    fun setGoogleDriveService(service: GoogleDriveServiceInterface) {
-        googleDriveService = service
     }
 
     override fun loadTrack(track: Track, autoPlay: Boolean): Boolean {
@@ -38,68 +26,14 @@ class MusicPlayer(private val context: Context) : MusicPlayerInterface {
             shouldAutoPlay = autoPlay
             currentTrack = track
 
-            // Check if this is a Google Drive file
-            if (track.filePath.startsWith("gdrive://")) {
-                loadGoogleDriveTrack(track)
-                return true
-            } else {
-                // Handle local file
-                return loadLocalTrack(track)
-            }
+            // MusicPlayer now only handles local files.
+            // Remote file downloading is handled by PlayTrackUseCase.
+            return loadLocalTrack(track)
 
         } catch (e: Exception) {
             Log.e("MusicPlayer", "Unexpected error loading track: ${track.title}", e)
             playbackStateListener?.onPlaybackError(track, "Unexpected error: ${e.message}")
             return false
-        }
-    }
-
-    private fun loadGoogleDriveTrack(track: Track) {
-        val driveService = googleDriveService
-        if (driveService == null) {
-            playbackStateListener?.onPlaybackError(track, "Google Drive service not available")
-            return
-        }
-
-        // Extract file ID from gdrive:// URL
-        val fileId = track.filePath.removePrefix("gdrive://")
-
-        // Download file in background
-        CoroutineScope(Dispatchers.IO).launch {
-            Log.d("MusicPlayer", "Downloading Google Drive file: ${track.title}")
-            when (val result = driveService.downloadFile(fileId)) {
-                is GoogleDriveResult.Success -> {
-                    try {
-                        // Save to temporary file
-                        val tempFile = File(context.cacheDir, "gdrive_${fileId}.tmp")
-                        FileOutputStream(tempFile).use { fos: FileOutputStream ->
-                            fos.write(result.data)
-                        }
-
-                        // Load the temporary file
-                        withContext(Dispatchers.Main) {
-                            loadLocalTrackFromFile(track, tempFile.absolutePath)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("MusicPlayer", "Error saving downloaded file", e)
-                        withContext(Dispatchers.Main) {
-                            playbackStateListener?.onPlaybackError(
-                                track,
-                                "Error saving downloaded file: ${e.message}"
-                            )
-                        }
-                    }
-                }
-                is GoogleDriveResult.Error -> {
-                    Log.e("MusicPlayer", "Failed to download file: ${result.message}", result.exception)
-                    withContext(Dispatchers.Main) {
-                        playbackStateListener?.onPlaybackError(
-                            track,
-                            "Failed to download from Google Drive: ${result.message}"
-                        )
-                    }
-                }
-            }
         }
     }
 
@@ -132,27 +66,11 @@ class MusicPlayer(private val context: Context) : MusicPlayerInterface {
 
                 setOnCompletionListener {
                     Log.d("MusicPlayer", "Track completed: ${track.title}")
-                    // Clean up temporary file if it's a Google Drive file
-                    if (track.filePath.startsWith("gdrive://")) {
-                        try {
-                            File(filePath).delete()
-                        } catch (e: Exception) {
-                            Log.w("MusicPlayer", "Failed to delete temp file", e)
-                        }
-                    }
                     playbackStateListener?.onPlaybackCompleted(track)
                 }
 
                 setOnErrorListener { _, what, extra ->
                     Log.e("MusicPlayer", "MediaPlayer error: what=$what, extra=$extra")
-                    // Clean up temporary file if it's a Google Drive file
-                    if (track.filePath.startsWith("gdrive://")) {
-                        try {
-                            File(filePath).delete()
-                        } catch (e: Exception) {
-                            Log.w("MusicPlayer", "Failed to delete temp file", e)
-                        }
-                    }
                     playbackStateListener?.onPlaybackError(track, "Playback error: $what")
                     false
                 }
@@ -320,8 +238,19 @@ class MusicPlayer(private val context: Context) : MusicPlayerInterface {
             }
 
             // Security: Validate allowed directories
+            // Note: cacheDir path should be allowed.
             val normalizedPath = filePath.lowercase()
-            val allowedPrefixes = listOf("/storage/", "/sdcard/", "/data/media/", "/android_asset/")
+            // Added /data/user/ for app cache paths in multi-user environments
+            // Added context.cacheDir parent path to whitelist
+            val allowedPrefixes = mutableListOf(
+                "/storage/", 
+                "/sdcard/", 
+                "/data/media/", 
+                "/android_asset/",
+                context.cacheDir.absolutePath.lowercase(),
+                context.filesDir.absolutePath.lowercase()
+            )
+            
             if (!allowedPrefixes.any { normalizedPath.startsWith(it) }) {
                 Log.w("MusicPlayer", "File path outside allowed directories: $filePath")
                 return false
@@ -330,7 +259,11 @@ class MusicPlayer(private val context: Context) : MusicPlayerInterface {
             // Security: Check for symbolic link attacks
             val file = File(filePath)
             val canonicalPath = file.canonicalPath
-            if (canonicalPath != filePath && !canonicalPath.lowercase().startsWith("/storage/")) {
+            // Allow if it resolves to our cache or files dir
+            if (canonicalPath != filePath && 
+                !canonicalPath.lowercase().startsWith("/storage/") &&
+                !canonicalPath.lowercase().startsWith(context.cacheDir.absolutePath.lowercase())
+            ) {
                 Log.w("MusicPlayer", "Potential symbolic link attack: $filePath -> $canonicalPath")
                 return false
             }

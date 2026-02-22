@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
+import com.hitsuji.sheepplayer2.interfaces.ArtistImageRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -12,13 +13,13 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
-class ArtistImageService(private val context: Context? = null) {
+class ArtistImageService(private val context: Context? = null) : ArtistImageRepository {
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    suspend fun searchArtistImages(artistName: String, maxImages: Int = 10): List<String> {
+    override suspend fun searchArtistImages(artistName: String, maxImages: Int): List<String> {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(
@@ -371,7 +372,7 @@ class ArtistImageService(private val context: Context? = null) {
         return urls.take(maxImages * 2)
     }
 
-    suspend fun downloadImage(imageUrl: String): Bitmap? {
+    override suspend fun downloadImage(imageUrl: String): Bitmap? {
         return withContext(Dispatchers.IO) {
             try {
                 if (!isValidImageUrl(imageUrl)) {
@@ -506,7 +507,7 @@ class ArtistImageService(private val context: Context? = null) {
         }
     }
 
-    fun getLoadingPlaceholderBitmap(): Bitmap? {
+    override fun getLoadingPlaceholderBitmap(): Bitmap? {
         return try {
             if (context != null) {
                 // Try to load the GIF as a bitmap (first frame)
@@ -637,7 +638,7 @@ class ArtistImageService(private val context: Context? = null) {
         }
     }
 
-    fun cleanup() {
+    override fun cleanup() {
         try {
             client.dispatcher.executorService.shutdown()
             client.connectionPool.evictAll()

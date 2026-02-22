@@ -15,6 +15,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.hitsuji.sheepplayer2.MainActivity
 import com.hitsuji.sheepplayer2.R
 import com.hitsuji.sheepplayer2.Track
+import com.hitsuji.sheepplayer2.SheepApplication
+import com.hitsuji.sheepplayer2.factory.ViewModelFactory
 import com.hitsuji.sheepplayer2.databinding.FragmentPlayingBinding
 import com.hitsuji.sheepplayer2.utils.Constants
 import com.hitsuji.sheepplayer2.utils.TimeUtils
@@ -25,6 +27,7 @@ class PlayingFragment : Fragment() {
     private val handler = Handler(Looper.getMainLooper())
     private var positionUpdateRunnable: Runnable? = null
     private lateinit var albumTrackAdapter: AlbumTrackAdapter
+    private lateinit var playingViewModel: PlayingViewModel
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -35,8 +38,9 @@ class PlayingFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        val playingViewModel =
-            ViewModelProvider(this).get(PlayingViewModel::class.java)
+        val application = requireActivity().application as SheepApplication
+        val factory = ViewModelFactory(application.container)
+        playingViewModel = ViewModelProvider(this, factory).get(PlayingViewModel::class.java)
 
         _binding = FragmentPlayingBinding.inflate(inflater, container, false)
         val root: View = binding.root
@@ -44,13 +48,35 @@ class PlayingFragment : Fragment() {
         setupWindowInsetsHandling()
         setupAlbumTracksList()
         setupUI()
+        setupObservers()
         return root
+    }
+
+    private fun setupObservers() {
+        playingViewModel.isPlaying.observe(viewLifecycleOwner) { isPlaying ->
+            updateButtonIcon(isPlaying)
+            if (isPlaying) {
+                startPositionUpdates()
+            } else {
+                stopPositionUpdates()
+            }
+            // Update album tracks list highlight
+            val mainActivity = requireActivity() as MainActivity
+            updateAlbumTracksList(mainActivity)
+        }
+
+        playingViewModel.currentTrack.observe(viewLifecycleOwner) { track ->
+            if (track != null) {
+                displayTrack(track)
+            } else {
+                showNoTrackMessage()
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
         syncWithMediaPlayer()
-        updateTrackDisplay()
         startPositionUpdates()
     }
 
@@ -73,11 +99,9 @@ class PlayingFragment : Fragment() {
             val bottomInset = maxOf(systemBars.bottom, navigationBars.bottom)
 
             // Add extra padding to ensure last track can scroll above bottom navigation
-            // Bottom navigation height is typically 56dp (approximately 168px on most devices)
             val bottomNavigationHeight = (56 * resources.displayMetrics.density).toInt()
-            val totalBottomPadding = bottomInset + bottomNavigationHeight + 16 // Extra 16dp for comfortable spacing
+            val totalBottomPadding = bottomInset + bottomNavigationHeight + 16
 
-            // Apply bottom padding to the RecyclerView so last track can scroll above bottom navigation
             view.setPadding(
                 view.paddingLeft,
                 view.paddingTop,
@@ -90,12 +114,10 @@ class PlayingFragment : Fragment() {
 
     private fun setupUI() {
         setupButtonClickListeners()
-        updateTrackDisplay()
     }
 
     private fun setupAlbumTracksList() {
         albumTrackAdapter = AlbumTrackAdapter { track, index ->
-            // Handle track click - play the selected track in the album without clearing album context
             val mainActivity = requireActivity() as MainActivity
             mainActivity.playTrackInAlbum(track, index)
         }
@@ -113,11 +135,11 @@ class PlayingFragment : Fragment() {
     }
 
     private fun handlePlayStopToggle() {
-        val mainActivity = requireActivity() as MainActivity
-        mainActivity.togglePlayback()
+        playingViewModel.togglePlayback()
     }
 
     fun onPlaybackStateChanged() {
+        // This is still called by MainActivity, but now we also have observers
         val mainActivity = requireActivity() as MainActivity
         updateButtonIcon(mainActivity.isPlaying)
         updateTimeDisplay()
@@ -130,30 +152,11 @@ class PlayingFragment : Fragment() {
         }
     }
 
-    private fun updatePlaybackState() {
-        val mainActivity = requireActivity() as MainActivity
-        updateButtonIcon(mainActivity.isPlaying)
-    }
-
-    private fun updateTrackDisplay() {
-        val mainActivity = requireActivity() as MainActivity
-        val track = mainActivity.currentPlayingTrack
-
-        if (track != null) {
-            displayTrack(track)
-        } else {
-            showNoTrackMessage()
-        }
-    }
-
     private fun displayTrack(track: Track) {
         val mainActivity = requireActivity() as MainActivity
 
         binding.apply {
-            // Hide no track message
             noTrackMessage.visibility = View.GONE
-
-            // Show track info and controls
             albumArtLarge.visibility = View.VISIBLE
             trackTitle.visibility = View.VISIBLE
             artistName.visibility = View.VISIBLE
@@ -161,37 +164,26 @@ class PlayingFragment : Fragment() {
             duration.visibility = View.VISIBLE
             playStopButton.visibility = View.VISIBLE
 
-            // Set track information
             trackTitle.text = track.title
             artistName.text = track.artistName
             albumName.text = track.albumName
             updateTimeDisplay()
 
-            // Load album art
             loadAlbumArt(track.albumArtUri, albumArtLarge)
-
-            // Update playback state
             updateButtonIcon(mainActivity.isPlaying)
-
-            // Show album track list if playing an album
             updateAlbumTracksList(mainActivity)
         }
     }
 
     private fun showNoTrackMessage() {
         binding.apply {
-            // Show no track message
             noTrackMessage.visibility = View.VISIBLE
-
-            // Hide track info and controls
             albumArtLarge.visibility = View.GONE
             trackTitle.visibility = View.GONE
             artistName.visibility = View.GONE
             albumName.visibility = View.GONE
             duration.visibility = View.GONE
             playStopButton.visibility = View.GONE
-
-            // Hide album track list
             albumTracksRecyclerView.visibility = View.GONE
         }
     }
@@ -202,12 +194,9 @@ class PlayingFragment : Fragment() {
         val currentTrackIndex = mainActivity.currentTrackIndexInAlbum
 
         if (currentAlbum != null && albumTracks.isNotEmpty()) {
-            // Show album track list
             binding.albumTracksRecyclerView.visibility = View.VISIBLE
-
             albumTrackAdapter.submitTracks(albumTracks, currentTrackIndex)
         } else {
-            // Hide album track list
             binding.albumTracksRecyclerView.visibility = View.GONE
         }
     }
@@ -259,7 +248,6 @@ class PlayingFragment : Fragment() {
                 imageView.setImageURI(uri)
             } catch (e: Exception) {
                 android.util.Log.w("PlayingFragment", "Failed to load album art", e)
-                // Keep default background if loading fails
             }
         }
     }
