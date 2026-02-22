@@ -1,127 +1,80 @@
 # Reference Documentation (DDD & Clean Architecture)
 
-This reference provides detailed technical information about SheepPlayer's classes, methods, and APIs, organized by architectural layer.
+This reference defines the system's components through the lens of **Domain-Driven Design (DDD)** and **Clean Architecture**, specifically optimized for a modern Android music player.
 
 ## 🏛️ Domain Layer (`domain/`)
 
-The core business logic, entities, and repository interfaces. Independent of Android.
+The heart of the application, containing the core business logic and definitions of music entities. This layer is pure Kotlin and independent of the Android framework.
 
-### Entities (`domain/model/`)
+### 🧩 Domain Model (`domain/model/`)
 
-#### `Artist`
-Represents a musical artist in the domain.
--   `id: Long`: Unique identifier.
--   `name: String`: Artist's name.
--   `albums: List<Album>`: Collection of albums by this artist.
+#### 📀 Aggregates
+-   **`Artist`**: An aggregate root representing a music performer. It contains their unique identity and a list of their **Albums**.
+-   **`Album`**: An entity representing a collection of tracks. It belongs to an **Artist**.
+-   **`PlaybackSession`**: An aggregate that manages the current state of audio playback, including the active track and queue.
 
-#### `Album`
-Represents a musical album.
--   `id: Long`: Unique identifier.
--   `title: String`: Album title.
--   `artistName: String`: Name of the artist.
--   `tracks: List<Track>`: Ordered list of tracks.
+#### 📄 Entities
+-   **`Track`**: A unique audio file identified by its content/location ID. It contains metadata and physical file references.
+-   **`User`**: Represents the authenticated user (e.g., via Google Drive).
 
-#### `Track`
-Represents an individual music track.
--   `id: Long`: Unique identifier.
--   `title: String`: Track title.
--   `duration: Long`: Length in milliseconds.
--   `filePath: String`: Physical file location.
--   `albumArtUri: String?`: URI for cover art.
+#### 💎 Value Objects
+-   **`Duration`**: Encapsulates time in milliseconds, providing validation and formatting logic.
+-   **`FilePath`**: Validates that a string is a secure, readable audio file location.
+-   **`PlaybackState`**: Represents the enumeration of valid player states (Playing, Paused, Buffering, Stopped, Idle).
 
-### Repository Interfaces (`domain/repository/`)
+### 🛠️ Domain Services (`domain/service/`)
+-   **`AudioScannerService`**: Logic for coordinating the scanning of local and remote sources to build the unified library.
+-   **`ImageValidatorService`**: Business rules for validating binary signatures of artist imagery.
 
-#### `MusicRepository`
-Defines the contract for accessing music data.
--   `getAllMusic(): List<Artist>`: Retrieves the entire library.
--   `getArtist(id: Long): Artist?`: Fetches a specific artist.
--   `search(query: String): List<Track>`: Searches for tracks matching the query.
+### 📜 Repository Interfaces (`domain/repository/`)
+-   **`MusicRepository`**: Defines the contract for persistence and retrieval of the music library.
+-   **`AuthRepository`**: Contract for identity management and cloud service authentication.
 
-#### `AuthRepository`
-Defines the contract for user authentication (e.g., Google Drive).
--   `signIn(): Result<User>`
--   `signOut()`
--   `getCurrentUser(): User?`
-
-### Use Cases (`domain/usecase/`)
-
-#### `GetMusicLibraryUseCase`
-Orchestrates the retrieval and organization of the music library.
--   `invoke(): Result<List<Artist>>`: Executes the logic to fetch and sort artists.
-
-#### `PlayTrackUseCase`
-Handles the business logic for starting playback.
--   `invoke(track: Track)`: Validates the track and instructs the player to start.
-
-#### `SearchLibraryUseCase`
-Encapsulates search logic.
--   `invoke(query: String): List<Track>`: Returns matching tracks.
+### 🚀 Use Cases (Interactors) (`domain/usecase/`)
+-   **`GetMusicLibraryUseCase`**: Orchestrates the assembly of the Artist hierarchy from all repositories.
+-   **`PlayMusicUseCase`**: Coordinates track validation and starts the audio session.
+-   **`TogglePlaybackUseCase`**: Handles the logic for switching between playing and paused states.
 
 ## 💾 Data Layer (`data/`)
 
-Implementations of domain interfaces and data sources.
+Adapts the domain requirements to specific technical frameworks and storage mechanisms.
 
-### Repository Implementations (`data/repository/`)
+### 🏛️ Repository Implementations
+-   **`MusicRepositoryImpl`**: Implements the logic to merge results from the `MediaStore` and `GoogleDrive` data sources.
+-   **`AuthRepositoryImpl`**: Implements Google Sign-In logic and token management.
 
-#### `MusicRepositoryImpl`
-Concrete implementation of `MusicRepository`.
--   **Dependencies**: `LocalMediaDataSource`, `RemoteDriveDataSource`.
--   **Responsibility**: Coordinates fetching from local and remote sources, mapping results to Domain Entities.
+### 🔌 Data Sources (`data/datasource/`)
+-   **`LocalMediaDataSource`**: Low-level interaction with Android `MediaStore` (ContentResolver).
+-   **`RemoteCloudDataSource`**: Interaction with Google Drive API and metadata extraction services.
+-   **`LocalCacheDataSource`**: SQLite-based persistence for caching remote metadata.
 
-#### `AuthRepositoryImpl`
-Concrete implementation of `AuthRepository`.
--   **Dependencies**: `GoogleSignInClient`.
--   **Responsibility**: Wraps Google Sign-In SDK calls.
-
-### Data Sources (`data/datasource/`)
-
-#### `LocalMediaDataSource`
-Wrapper around Android `MediaStore`.
--   `queryAudioFiles(): List<MediaDto>`: Low-level query for audio files.
-
-#### `RemoteDriveDataSource`
-Wrapper around Google Drive API.
--   `listFiles(): List<DriveFileDto>`: Fetches files from Drive.
-
-### Mappers (`data/mapper/`)
-
-#### `TrackMapper`
-Converts `MediaDto` (Data Layer) to `Track` (Domain Layer).
--   `mapToDomain(dto: MediaDto): Track`
+### 🔄 Mappers
+-   **`EntityMappers`**: Responsibility for converting DTOs (Data Transfer Objects) from system APIs into Domain Entities.
 
 ## 🖥️ Presentation Layer (`presentation/`)
 
-UI components and state holders.
+Handles user interaction and renders the current state of the Domain.
 
-### ViewModels (`presentation/viewmodel/`)
+### 🎮 ViewModels
+-   **`LibraryViewModel`**: Manages the UI state for the music explorer (Tracks tab).
+-   **`PlayerViewModel`**: Orchestrates the UI state for the control center (Playing tab).
+-   **`ArtistGalleryViewModel`**: Manages the dynamic loading of artist images (Pictures tab).
 
-#### `LibraryViewModel`
-State holder for the library screen.
--   **Dependencies**: `GetMusicLibraryUseCase`.
--   **State**: `LibraryUiState` (Loading, Success, Error).
--   `loadLibrary()`: Triggers the Use Case.
+### 🎨 UI Components
+-   **`MainActivity`**: The navigation host and controller.
+-   **Fragments**: Modular screens observing ViewModel states (e.g., `PlayingFragment`).
+-   **Adapters**: Specialized rendering logic for the hierarchical library list.
 
-#### `PlayerViewModel`
-State holder for the player screen.
--   **Dependencies**: `PlayTrackUseCase`, `ControlPlaybackUseCase`.
--   **State**: `PlayerUiState` (Playing, Paused, TrackInfo).
--   `play(track: Track)`: Triggers playback.
+## ⚙️ Infrastructure Layer (`infrastructure/`)
 
-### UI Components (`presentation/ui/`)
+Framework-specific code that supports the other layers.
 
-#### `TracksFragment`
-Displays the music library.
--   **Observes**: `LibraryViewModel.uiState`.
--   **Adapter**: `TreeAdapter` (renders Domain Entities).
+### 🔊 Audio Infrastructure
+-   **`AndroidMusicPlayer`**: Implementation of a domain-defined player interface using Android's `MediaPlayer` or `ExoPlayer`.
 
-#### `PlayingFragment`
-Displays current track info and controls.
--   **Observes**: `PlayerViewModel.uiState`.
+### 🔑 Security & Validation
+-   **`PathValidator`**: Android-specific implementation of file path security checks.
+-   **`BinarySignatureValidator`**: Logic for checking magic numbers in downloaded files.
 
-## 📦 Dependency Injection (`di/`)
-
-Configuration for wiring layers together (e.g., Hilt/Koin modules).
-
--   **DomainModule**: Provides Use Cases.
--   **DataModule**: Binds Repository implementations to interfaces.
--   **AppModule**: Provides system services (Context, ContentResolver).
+### 🛠️ Dependency Injection
+-   **`Hilt/Koin Modules`**: Wiring of interfaces to concrete implementations.

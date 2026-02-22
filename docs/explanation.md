@@ -1,67 +1,79 @@
-# Explanation
+# Explanation (DDD & Clean Architecture)
 
-This section provides conceptual understanding of SheepPlayer's architectural decisions, specifically the adoption of Domain-Driven Design (DDD) and Clean Architecture, and the reasoning behind key implementation details.
+This section provides a conceptual understanding of SheepPlayer's architectural decisions, explaining the "why" behind the adoption of **Domain-Driven Design (DDD)** and **Clean Architecture**.
 
-## Why DDD & Clean Architecture?
+## 🚀 The Strategic Shift
 
-SheepPlayer has transitioned from a traditional layered architecture to one based on **Domain-Driven Design (DDD)** and **Clean Architecture**. This strategic shift addresses several critical aspects of modern Android development:
+SheepPlayer has transitioned from a traditional layered architecture to a more robust, **Clean Architecture** model. This strategic choice addresses three key challenges in Android development:
 
-### 1. Framework Independence
--   **The Core is Pure**: The Domain layer (Entities, Use Cases) contains *zero* Android dependencies. It is pure Kotlin.
--   **Future-Proofing**: If Android UI libraries change (e.g., from XML to Compose) or database technologies evolve (e.g., from SQLite to Room or Realm), the core business logic remains untouched.
--   **Benefit**: The most valuable part of the application—the business rules—is protected from external churn.
+1.  **Framework Entanglement**: Prevents the core music logic (e.g., how tracks are grouped into albums) from becoming coupled to the Android `MediaStore` or `Activity` lifecycle.
+2.  **Testability**: Allows the most critical part of the application—the business rules—to be tested without an emulator or device.
+3.  **Scalability**: Makes it simple to add new music sources (e.g., Spotify, local network storage) without rewriting the playback or UI logic.
 
-### 2. Testability First
--   **Isolated Logic**: Because the Domain layer has no dependencies on the Android framework, unit tests can run instantly on the JVM without needing an emulator or device.
--   **Mocking Power**: Interfaces defined in the Domain layer allow us to easily swap real implementations (like `MusicRepositoryImpl` talking to `MediaStore`) with fake ones (like `FakeMusicRepository` returning a static list) for rigorous testing.
--   **Benefit**: Faster, more reliable test suites lead to higher code quality and fewer regressions.
+## 🏛️ Clean Architecture Philosophy
 
-### 3. Scalability & Maintainability
--   **Clear Boundaries**: Each feature is implemented as a set of Use Cases. Adding a new feature (e.g., "Create Playlist") involves adding a new Use Case and potentially a new Entity method, without modifying unrelated code.
--   **Cognitive Load**: Developers only need to understand the specific Use Case they are working on, not the entire application flow.
--   **Benefit**: The codebase can grow in complexity without becoming a "Big Ball of Mud."
+The application is structured in concentric circles, where the most stable business rules are at the center and the most volatile technical details are on the periphery.
 
-## Architectural Philosophy
+```mermaid
+graph TD
+    subgraph Layers ["Concentric Architectural Layers"]
+        Domain[Domain Layer - Entities & Use Cases]
+        Data[Data Layer - Repositories & Mappers]
+        Presentation[Presentation Layer - UI & ViewModels]
+        Infrastructure[Infrastructure Layer - Framework Impls]
+    end
 
-### Separation of Concerns
-The application is divided into concentric circles, with the Domain at the center.
+    Infrastructure --> Data
+    Data --> Domain
+    Presentation --> Domain
+```
 
--   **Entities**: Represent core business concepts (`Track`, `Artist`, `Album`). They encapsulate state and behavior.
--   **Use Cases**: Orchestrate the flow of data to and from Entities. They tell the Entities *what* to do.
--   **Interface Adapters**: Convert data from the format most convenient for the Use Cases and Entities, to the format most convenient for external agencies (Database, Web).
--   **Frameworks & Drivers**: The outermost layer. This is where the Database and the Web Framework live.
+### The Dependency Rule
+Source code dependencies only point **inwards**. Nothing in an inner circle can know anything about something in an outer circle.
 
-### Dependency Rule
-Source code dependencies can only point **inwards**. Nothing in an inner circle can know anything at all about something in an outer circle.
+-   **The Domain Layer** is the "Source of Truth." It knows nothing about the UI, the Database, or the Android SDK.
+-   **The Data Layer** adapts the Domain's needs to specific storage technologies (like `MediaStore`).
+-   **The Presentation Layer** adapts the Domain's state to the UI (Fragments/Activities).
 
--   **Data Layer** knows about **Domain Layer**.
--   **Presentation Layer** knows about **Domain Layer**.
--   **Domain Layer** knows *nothing* about Data or Presentation.
+## 🧩 Domain-Driven Design (DDD) Concepts
 
-## Key Design Decisions
+SheepPlayer uses DDD to model the complex relationships of a music library.
 
-### Repository Pattern (In DDD Context)
-In DDD, the Repository is an abstraction that represents a collection of Domain Entities.
+### Aggregates & Entities
+-   **Aggregate Root**: The `Artist` is a boundary for consistency. It "owns" its `Albums`.
+-   **Entities**: Objects like `Track` have a unique identity that persists even if their metadata (like title) changes.
+-   **Value Objects**: Concepts like `Duration` and `FilePath` are immutable and encapsulate validation. This prevents "primitive obsession" and ensures data integrity.
 
--   **Interface in Domain**: The `MusicRepository` interface is defined in the Domain layer. It speaks the language of the domain (e.g., `getArtists(): List<Artist>`).
--   **Implementation in Data**: The `MusicRepositoryImpl` is in the Data layer. It handles the details of `MediaStore` queries, cursors, and mapping to Domain Entities.
+### Use Cases (Interactors)
+We use the **Command Pattern** for business logic. Each user action (e.g., `ScanLibrary`, `PlayTrack`) is represented by a single Use Case class. This makes the system's capabilities explicitly clear and easy to maintain.
 
-### Use Cases as Interactors
-We explicitly define classes for every user action or business rule (e.g., `PlayMusicUseCase`, `SearchLibraryUseCase`). This makes the codebase self-documenting: looking at the `domain/usecase` package tells you exactly what the application *does*.
+## 💾 Data & Infrastructure
 
-## Security & Data Flow
+### The Repository Pattern
+In our Clean Architecture, the **Repository Interface** lives in the **Domain** layer, but its **Implementation** lives in the **Data** layer.
 
-### Secure by Design
--   **Domain Validation**: Entities enforce their own invariants (e.g., a `Track` cannot have a negative duration).
--   **Data Sanitization**: The Data layer is responsible for sanitizing external inputs (files, network data) before they are converted into Domain Entities.
--   **Presentation Logic**: The UI handles user input validation but delegates all business logic to the Use Cases.
+-   **Domain Interface**: `MusicRepository.getArtists(): List<Artist>`
+-   **Data Implementation**: `MusicRepositoryImpl` (calls `MediaStore` and `GoogleDrive`).
 
-### Unidirectional Data Flow
-Data flows in a single direction:
-1.  **UI Event**: User clicks "Play".
-2.  **ViewModel**: Calls `PlayMusicUseCase`.
-3.  **Use Case**: Interacts with `MusicRepository` (Domain Interface).
-4.  **Repository Impl**: Fetches/updates data (Data Layer).
-5.  **Return**: Domain Entities are returned up the stack.
-6.  **State Update**: ViewModel updates `uiState`.
-7.  **UI Render**: Fragment observes state and redraws.
+This is a classic example of **Dependency Inversion**. The high-level business logic (Domain) does not depend on the low-level data access (Data).
+
+### Infrastructure (Framework Implementation)
+The **Infrastructure** layer contains the real-world implementations of domain requirements that are platform-specific, such as the `AndroidMusicPlayer` (using `MediaPlayer`) and `PathValidator`.
+
+## 🛡️ Security by Design
+
+Security is a first-class citizen in our architecture:
+
+1.  **Sanitization at the Gateway**: The Data layer sanitizes all incoming metadata from `MediaStore` before it is mapped into a `Track` entity.
+2.  **Signature Validation**: The Infrastructure layer performs binary signature checks (Magic Numbers) on all downloaded artist imagery.
+3.  **Safe Instantiation**: Domain Entities and Value Objects validate their state upon creation, ensuring the application never operates on "dirty" data.
+
+## 🔄 Data Flow (Unidirectional)
+
+Data in SheepPlayer follows a strict, unidirectional path:
+1.  **UI Event**: User swiped a track.
+2.  **ViewModel**: Receives the event and executes a Use Case.
+3.  **Use Case**: Interacts with the Domain Repository (Interface).
+4.  **Repository Impl**: Fetches data and returns Domain Entities.
+5.  **ViewModel State**: The Entities are mapped to a UI State and emitted to the UI.
+6.  **UI Render**: The Fragment observes the state and updates the view.
