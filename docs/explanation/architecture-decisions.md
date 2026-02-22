@@ -41,6 +41,7 @@ SheepPlayer uses DDD to model the complex relationships of a music library.
 
 ### Aggregates & Entities
 -   **Aggregate Root**: The `Artist` is a boundary for consistency. It "owns" its `Albums`.
+-   **Playback Session**: A specialized aggregate that manages the active `Track` and the current playback queue (e.g., all tracks in an album). This ensures that transitions between tracks are handled consistently by the domain logic.
 -   **Entities**: Objects like `Track` have a unique identity that persists even if their metadata (like title) changes.
 -   **Value Objects**: Concepts like `Duration` and `FilePath` are immutable and encapsulate validation. This prevents "primitive obsession" and ensures data integrity.
 

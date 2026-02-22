@@ -52,6 +52,35 @@ graph TD
 -   **Loading state**: An animated "Sheep" GIF at the end of the list indicates an active search.
 -   **Shimmer**: Individual image slots use shimmer effects during the validation phase.
 
+## 🔄 Interaction Flow: Updating Playing List
+
+This flow describes how the playback queue (Playing List) is updated when a user interacts with the library.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Tracks as Tracks Fragment
+    participant Activity as MainActivity
+    participant Playing as Playing Fragment
+    participant Manager as MusicPlayerManager
+
+    User->>Tracks: Swipe Right on Album
+    Tracks->>Activity: playAlbum(album)
+    Activity->>Activity: Set currentAlbumTracks
+    Activity->>Manager: playTrack(firstTrack)
+    Activity->>Activity: switchToPlayingTab()
+    
+    rect rgb(240, 240, 240)
+    Note over Playing: User switches to Playing tab
+    User->>Playing: Tap track in Album List
+    Playing->>Activity: playTrackInAlbum(track, index)
+    Activity->>Activity: Update currentTrackIndex
+    Activity->>Manager: playTrack(track)
+    Manager-->>Activity: onPlaybackStateChanged()
+    Activity-->>Playing: Update highlight in list
+    end
+```
+
 ## 🛠️ Feature Specifications
 
 ### 🔊 Audio Engine & System Integration

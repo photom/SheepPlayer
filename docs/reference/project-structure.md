@@ -111,6 +111,59 @@ sequenceDiagram
     VM-->>Fragment: Update UI State (LoggedIn/LoggedOut)
 ```
 
+## 🔄 Interaction Flow: Play Album (Updating Queue)
+
+This sequence illustrates how selecting an album updates the playback queue and handles automatic transitions between tracks.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Fragment as Presentation (TracksFragment)
+    participant Activity as Presentation (MainActivity)
+    participant VM as Presentation (PlayerViewModel)
+    participant Manager as Domain (MusicPlayerManager)
+    participant Engine as Infrastructure (Audio Engine)
+
+    User->>Fragment: Tap "Play" on Album
+    Fragment->>Activity: playAlbum(album)
+    Activity->>Activity: Set currentAlbumTracks & index = 0
+    Activity->>Manager: playTrack(firstTrack)
+    Manager->>Engine: loadTrack(firstTrack, autoPlay=true)
+    Engine-->>Manager: onPlaybackStarted()
+    Manager-->>Activity: onPlaybackStateChanged()
+    Activity-->>VM: Notify UI update
+    
+    Note over Engine: Track finishes...
+    Engine-->>Manager: onPlaybackCompleted(track)
+    Manager-->>Activity: onPlaybackCompletionListener(track)
+    
+    Activity->>Activity: Increment track index
+    Activity->>Manager: playTrack(nextTrack)
+    Manager->>Engine: loadTrack(nextTrack, autoPlay=true)
+```
+
+## 🔄 Interaction Flow: Play Track in Album
+
+Selecting a specific track from within an album updates the current index while keeping the album context for future automatic transitions.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Fragment as Presentation (PlayingFragment)
+    participant Activity as Presentation (MainActivity)
+    participant Manager as Domain (MusicPlayerManager)
+    participant Engine as Infrastructure (Audio Engine)
+
+    User->>Fragment: Tap Track in Album List
+    Fragment->>Activity: playTrackInAlbum(track, index)
+    Activity->>Activity: Set currentTrackIndexInAlbum = index
+    Activity->>Manager: playTrack(track)
+    Manager->>Engine: loadTrack(track, autoPlay=true)
+    Engine-->>Manager: onPlaybackStarted()
+    Manager-->>Activity: onPlaybackStateChanged()
+    Activity-->>Fragment: onPlaybackStateChanged()
+```
+
 ## 🛡️ Security Boundaries
 
 Security is handled at the outermost layers before reaching the domain:
