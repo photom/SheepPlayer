@@ -82,6 +82,32 @@ sequenceDiagram
     VM-->>Fragment: Update UI to "Playing"
 ```
 
+### Swipe to Play Class Diagram
+
+```mermaid
+classDiagram
+    class TracksFragment {
+        -TreeAdapter treeAdapter
+        +onTrackSwiped(track)
+    }
+    class MainActivity {
+        -MusicPlayerManager musicPlayerManager
+        +playTrack(track)
+    }
+    class MusicPlayerManager {
+        -MusicPlayer musicPlayer
+        +playTrack(track)
+    }
+    class MusicPlayer {
+        -MediaPlayer mediaPlayer
+        +loadTrack(track, autoPlay)
+    }
+    
+    TracksFragment --> MainActivity : calls
+    MainActivity --> MusicPlayerManager : delegates to
+    MusicPlayerManager --> MusicPlayer : controls
+```
+
 ## 🔄 Interaction Flow: Google Drive Login
 
 This sequence illustrates the authentication process for cloud-based music services.
@@ -109,6 +135,37 @@ sequenceDiagram
     Auth->>Auth: Validate Scopes (DRIVE_READONLY)
     Auth-->>VM: Return Result (Success/Error)
     VM-->>Fragment: Update UI State (LoggedIn/LoggedOut)
+```
+
+### Google Drive Login Class Diagram
+
+```mermaid
+classDiagram
+    class MenuFragment {
+        -MenuViewModel menuViewModel
+        -GoogleDriveServiceInterface googleDriveService
+        +signInToGoogleDrive()
+    }
+    class MenuViewModel {
+        +updateGoogleAccountStatus(service)
+    }
+    class GoogleDriveServiceInterface {
+        <<interface>>
+        +signIn() GoogleDriveResult
+    }
+    class GoogleDriveService {
+        -GoogleDriveAuthenticator authenticator
+        +signIn() GoogleDriveResult
+    }
+    class GoogleDriveAuthenticator {
+        -GoogleSignInClient googleSignInClient
+        +signIn() GoogleDriveResult
+    }
+
+    MenuFragment --> MenuViewModel : observes
+    MenuFragment o-- GoogleDriveServiceInterface : uses
+    GoogleDriveService ..|> GoogleDriveServiceInterface : implements
+    GoogleDriveService o-- GoogleDriveAuthenticator : delegates to
 ```
 
 ## 🔄 Interaction Flow: Play Album (Updating Queue)
@@ -142,6 +199,33 @@ sequenceDiagram
     Manager->>Engine: loadTrack(nextTrack, autoPlay=true)
 ```
 
+### Play Album Class Diagram
+
+```mermaid
+classDiagram
+    class TracksFragment {
+        +onAlbumSwiped(album)
+    }
+    class MainActivity {
+        -Album currentPlayingAlbum
+        -List currentAlbumTracks
+        -Int currentTrackIndexInAlbum
+        +playAlbum(album)
+    }
+    class MusicPlayerManager {
+        +playTrack(track)
+        +setOnPlaybackCompletionListener(listener)
+    }
+    class MusicPlayer {
+        +loadTrack(track, autoPlay)
+    }
+
+    TracksFragment --> MainActivity : calls
+    MainActivity --> MusicPlayerManager : uses
+    MusicPlayerManager --> MusicPlayer : controls
+    MusicPlayerManager ..> MainActivity : notifies completion
+```
+
 ## 🔄 Interaction Flow: Play Track in Album
 
 Selecting a specific track from within an album updates the current index while keeping the album context for future automatic transitions.
@@ -162,6 +246,34 @@ sequenceDiagram
     Engine-->>Manager: onPlaybackStarted()
     Manager-->>Activity: onPlaybackStateChanged()
     Activity-->>Fragment: onPlaybackStateChanged()
+```
+
+### Play Track in Album Class Diagram
+
+```mermaid
+classDiagram
+    class PlayingFragment {
+        -AlbumTrackAdapter albumTrackAdapter
+        +onPlaybackStateChanged()
+    }
+    class MainActivity {
+        -Int currentTrackIndexInAlbum
+        +playTrackInAlbum(track, index)
+        +notifyPlaybackStateChanged()
+    }
+    class MusicPlayerManager {
+        +playTrack(track)
+        +setOnPlaybackStateChangeListener(listener)
+    }
+    class MusicPlayer {
+        +loadTrack(track, autoPlay)
+    }
+
+    PlayingFragment --> MainActivity : calls
+    MainActivity --> MusicPlayerManager : uses
+    MusicPlayerManager --> MusicPlayer : controls
+    MusicPlayerManager ..> MainActivity : notifies state change
+    MainActivity ..> PlayingFragment : notifies state change
 ```
 
 ## 🛡️ Security Boundaries

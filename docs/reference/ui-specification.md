@@ -81,6 +81,41 @@ sequenceDiagram
     end
 ```
 
+### Updating Playing List Class Diagram
+
+```mermaid
+classDiagram
+    class TracksFragment {
+        +onAlbumSwiped(album)
+    }
+    class PlayingFragment {
+        -AlbumTrackAdapter albumTrackAdapter
+        +onPlaybackStateChanged()
+    }
+    class MainActivity {
+        -Album currentPlayingAlbum
+        -List currentAlbumTracks
+        -Int currentTrackIndexInAlbum
+        +playAlbum(album)
+        +playTrackInAlbum(track, index)
+    }
+    class MusicPlayerManager {
+        +playTrack(track)
+        +setOnPlaybackStateChangeListener(listener)
+        +setOnPlaybackCompletionListener(listener)
+    }
+    class MusicPlayer {
+        +loadTrack(track, autoPlay)
+    }
+
+    TracksFragment --> MainActivity : playAlbum
+    PlayingFragment --> MainActivity : playTrackInAlbum
+    MainActivity --> MusicPlayerManager : delegates playback
+    MusicPlayerManager --> MusicPlayer : controls
+    MusicPlayerManager ..> MainActivity : status callbacks
+    MainActivity ..> PlayingFragment : update UI
+```
+
 ## 🛠️ Feature Specifications
 
 ### 🔊 Audio Engine & System Integration

@@ -35,6 +35,49 @@ sequenceDiagram
     end
 ```
 
+### Authentication Class Diagram
+
+The following class diagram shows the relationships between the components involved in the authentication flow.
+
+```mermaid
+classDiagram
+    class MenuFragment {
+        -MenuViewModel menuViewModel
+        -GoogleDriveServiceInterface googleDriveService
+        +onCreateView() View
+        +signInToGoogleDrive()
+        +signOutFromGoogleDrive()
+    }
+    class MenuViewModel {
+        -MutableLiveData isSignedIn
+        -MutableLiveData currentAccountEmail
+        +updateGoogleAccountStatus(service)
+    }
+    class GoogleDriveServiceInterface {
+        <<interface>>
+        +signIn() GoogleDriveResult
+        +signOut() GoogleDriveResult
+        +isSignedIn() Boolean
+        +getCurrentAccount() GoogleSignInAccount
+    }
+    class GoogleDriveService {
+        -GoogleDriveAuthenticator authenticator
+        +signIn() GoogleDriveResult
+        +signOut() GoogleDriveResult
+    }
+    class GoogleDriveAuthenticator {
+        -GoogleSignInClient googleSignInClient
+        +signIn() GoogleDriveResult
+        +signOut() GoogleDriveResult
+        +isSignedIn() Boolean
+    }
+
+    MenuFragment --> MenuViewModel : observes
+    MenuFragment o-- GoogleDriveServiceInterface : uses
+    GoogleDriveService ..|> GoogleDriveServiceInterface : implements
+    GoogleDriveService o-- GoogleDriveAuthenticator : delegates to
+```
+
 ## Setup Requirements
 
 ### 1. Google Cloud Console Setup
