@@ -42,25 +42,25 @@ Documentation is organized following [Diátaxis](https://diataxis.fr/) principle
 
 ### Learning-oriented
 
-- **[Tutorial](docs/tutorial.md)** - Learn to build a music player from scratch
+- **[Tutorial](docs/tutorials/getting-started.md)** - Learn to build a music player from scratch
 
 ### Information-oriented
 
-- **[Reference](docs/reference.md)** - API documentation and specifications
-- **[UI & Feature Specification](docs/ui-feature-specification.md)** - User interface and feature
+- **[Reference](docs/reference/technical-reference.md)** - API documentation and specifications
+- **[UI & Feature Specification](docs/reference/ui-specification.md)** - User interface and feature
   specifications
-- **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
-- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Codebase organization and structure
+- **[API Reference](docs/reference/api.md)** - Complete API documentation
+- **[Project Structure](docs/reference/project-structure.md)** - Codebase organization and structure
 
 ### Understanding-oriented
 
-- **[Explanation](docs/explanation.md)** - Architecture concepts and design decisions
+- **[Explanation](docs/explanation/architecture-decisions.md)** - Architecture concepts and design decisions
 
 ### Project information
 
 - **[Contributing](CONTRIBUTING.md)** - How to contribute to SheepPlayer
-- **[Build setup](docs/BUILD_SETUP.md)** - Development environment configuration
-- **[Testing](docs/TESTING_GUIDE.md)** - Testing approach and guidelines
+- **[Build setup](docs/how-to-guides/build-setup.md)** - Development environment configuration
+- **[Testing](docs/explanation/testing-strategy.md)** - Testing approach and guidelines
 
 ## Technical Requirements
 
