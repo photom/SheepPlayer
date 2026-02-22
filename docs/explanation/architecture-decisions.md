@@ -69,15 +69,26 @@ Security is a first-class citizen in our architecture:
 2.  **Signature Validation**: The Infrastructure layer performs binary signature checks (Magic Numbers) on all downloaded artist imagery.
 3.  **Safe Instantiation**: Domain Entities and Value Objects validate their state upon creation, ensuring the application never operates on "dirty" data.
 
+## 💉 Dependency Injection (Manual Container)
+
+To maintain the **Dependency Inversion Principle** and ensure that components are easily testable, SheepPlayer utilizes a **Manual Dependency Injection** pattern:
+
+1.  **AppContainer**: A centralized class that manages the lifecycle and instantiation of application-wide singletons (Repositories, Services, Use Cases, and the Audio Engine).
+2.  **SheepApplication**: The custom `Application` class that initializes the `AppContainer` once per application lifecycle.
+3.  **ViewModelFactory**: A specialized factory that bridges the `AppContainer` and the Android ViewModel system, enabling **constructor injection** for ViewModels.
+4.  **Use Case Injection**: ViewModels and Activities receive their logic via Use Case classes injected from the container, rather than interacting with repositories or framework APIs directly.
+
+This approach provides the benefits of DI (decoupling, testability) without the overhead or complexity of a heavy framework like Hilt or Dagger in this phase of the project.
+
 ## 🔄 Data Flow (Unidirectional)
 
 Data in SheepPlayer follows a strict, unidirectional path:
-1.  **UI Event**: User swiped a track.
-2.  **ViewModel**: Receives the event and executes a Use Case.
-3.  **Use Case**: Interacts with the Domain Repository (Interface).
-4.  **Repository Impl**: Fetches data and returns Domain Entities.
-5.  **ViewModel State**: The Entities are mapped to a UI State and emitted to the UI.
-6.  **UI Render**: The Fragment observes the state and updates the view.
+1.  **UI Event**: User swiped a track or clicked a button.
+2.  **ViewModel**: Receives the event and executes a **Use Case**.
+3.  **Use Case**: Encapsulates business logic (e.g., preparation, merging, validation) and interacts with Domain Repository interfaces.
+4.  **Repository Impl**: Fetches data from data sources (MediaStore, Google Drive) and returns Domain Entities.
+5.  **ViewModel State**: Maps Domain Entities to UI-friendly state and emits via `LiveData` or `Flow`.
+6.  **UI Render**: Fragment observes the state and updates the Material 3 components.
 
 ## ⌛ User Feedback & Background Operations
 

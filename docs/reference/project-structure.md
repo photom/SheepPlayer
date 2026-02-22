@@ -39,7 +39,10 @@ graph TD
 ### 1. `domain/` (The Core)
 Contains the essential business rules of the music player. No Android dependencies.
 -   **`model/`**: `Track`, `Album`, `Artist` (Entities) and `Duration`, `FilePath` (Value Objects).
--   **`usecase/`**: Specific interactors like `ScanLibrary`, `PlayTrack`, `SyncCloudMusic`.
+-   **`usecase/`**:
+    -   **`GetMusicLibraryUseCase`**: Orchestrates fetching and merging music from local and remote sources.
+    -   **`PlayTrackUseCase`**: Handles track preparation (including resolving/downloading remote files) and initiating playback.
+    -   **`TogglePlaybackUseCase`**: Manages play/pause state transitions.
 -   **`repository/`**: Interfaces defining how the system accesses music data.
 
 ### 2. `data/` (The Persistence)
@@ -52,11 +55,18 @@ Adapts domain requests to technical storage.
 Renders the domain state and captures user intent.
 -   **`ui/`**: Android-specific views (Fragments, Activities, Adapters).
 -   **`viewmodel/`**: State holders that communicate with the domain Use Cases via reactive streams.
+-   **`factory/`**: `ViewModelFactory` for providing dependencies to ViewModels via constructor injection.
 
 ### 4. `infrastructure/` (The Platform)
 Framework-specific tools that implement domain or data requirements.
 -   **`player/`**: The actual `MediaPlayer` implementation that fulfills the domain's audio requirements.
 -   **`security/`**: Real-world implementation of path and image validation.
+
+### 5. `interfaces/` (Contracts)
+Defines the boundary between layers via dependency inversion.
+-   **Repository Interfaces**: `MusicRepositoryInterface`, `ArtistImageRepository`.
+-   **Service Interfaces**: `GoogleDriveServiceInterface`.
+-   **Manager Interfaces**: `PlaybackManagerInterface`.
 
 ## 🔄 Interaction Flow: "Swipe to Play"
 
