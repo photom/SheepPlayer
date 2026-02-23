@@ -7,74 +7,72 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import java.io.File
-import java.nio.file.Files
 
 class PlayTrackUseCaseTest {
 
-    private lateinit var playTrackUseCase: PlayTrackUseCase
+    @get:Rule
+    val tempFolder = TemporaryFolder()
+
     private lateinit var fakePlaybackManager: FakePlaybackManager
     private lateinit var fakeGoogleDriveService: FakeGoogleDriveService
     private lateinit var cacheDir: File
+    private lateinit var useCase: PlayTrackUseCase
 
     @Before
     fun setup() {
         fakePlaybackManager = FakePlaybackManager()
         fakeGoogleDriveService = FakeGoogleDriveService()
-        // Create a temp directory for cache
-        cacheDir = Files.createTempDirectory("sheepplayer_test_cache").toFile()
-        cacheDir.deleteOnExit()
-        
-        // Setup fake google drive service
-        fakeGoogleDriveService.addFile("valid_id", "fake_data".toByteArray())
-        
-        playTrackUseCase = PlayTrackUseCase(
-            fakePlaybackManager,
-            fakeGoogleDriveService,
-            cacheDir
-        )
+        cacheDir = tempFolder.newFolder("cache")
+        useCase = PlayTrackUseCase(fakePlaybackManager, fakeGoogleDriveService, cacheDir)
     }
 
     @Test
     fun `invoke plays local track directly`() = runBlocking {
-        val localTrack = Track(
-            id = 1,
-            title = "Local Song",
-            artistName = "Artist",
-            albumName = "Album",
-            duration = 1000,
-            filePath = "/storage/emulated/0/Music/song.mp3"
-        )
-
-        playTrackUseCase(localTrack)
-
-        assertEquals(localTrack, fakePlaybackManager.currentPlayingTrack)
+        val track = Track(1, "Local", "Artist", "Album", 1000, "/path/song.mp3")
+        
+        useCase(track)
+        
+        assertEquals(track, fakePlaybackManager.currentPlayingTrack)
+        assertTrue(fakePlaybackManager.isPlaying)
     }
 
     @Test
-    fun `invoke downloads and plays google drive track`() = runBlocking {
-        val fileId = "valid_id"
-        val remoteTrack = Track(
-            id = 2,
-            title = "Remote Song",
-            artistName = "Artist",
-            albumName = "Album",
-            duration = 1000,
-            filePath = "gdrive://$fileId"
-        )
+    fun `invoke downloads and plays Google Drive track`() = runBlocking {
+        val fileId = "file123"
+        val track = Track(2, "Cloud", "Artist", "Album", 2000, "gdrive://$fileId")
+        val fileData = "fake audio data".toByteArray()
+        fakeGoogleDriveService.addFile(fileId, fileData)
+        
+        useCase(track)
+        
+        val expectedCacheFile = File(cacheDir, "gdrive_${fileId}.mp3")
+        assertTrue("Cache file should exist", expectedCacheFile.exists())
+        assertEquals("File content should match", String(fileData), expectedCacheFile.readText())
+        
+        val playingTrack = fakePlaybackManager.currentPlayingTrack
+        assertEquals(track.id, playingTrack?.id)
+        assertEquals(expectedCacheFile.absolutePath, playingTrack?.filePath)
+        assertTrue(fakePlaybackManager.isPlaying)
+    }
 
-        playTrackUseCase(remoteTrack)
-
-        val playedTrack = fakePlaybackManager.currentPlayingTrack
-        // Track should be played
-        assertTrue("Track was not played", playedTrack != null)
-        // Path should be local cache path
-        val expectedPath = File(cacheDir, "gdrive_$fileId.tmp").absolutePath
-        assertEquals(expectedPath, playedTrack?.filePath)
-        // File should exist and have content
-        val cachedFile = File(expectedPath)
-        assertTrue("Cached file does not exist", cachedFile.exists())
-        assertEquals("fake_data", cachedFile.readText())
+    @Test
+    fun `invoke uses cached file if it exists`() = runBlocking {
+        val fileId = "file456"
+        val track = Track(3, "Cached", "Artist", "Album", 3000, "gdrive://$fileId")
+        val expectedCacheFile = File(cacheDir, "gdrive_${fileId}.mp3")
+        val cachedData = "pre-cached data"
+        expectedCacheFile.writeText(cachedData)
+        
+        // Google Drive service would fail if it tried to download
+        // (FakeGoogleDriveService returns error if file not found)
+        
+        useCase(track)
+        
+        assertEquals(expectedCacheFile.absolutePath, fakePlaybackManager.currentPlayingTrack?.filePath)
+        assertEquals(cachedData, File(fakePlaybackManager.currentPlayingTrack!!.filePath).readText())
     }
 }

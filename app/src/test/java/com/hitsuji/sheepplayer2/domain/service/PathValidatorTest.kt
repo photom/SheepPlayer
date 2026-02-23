@@ -13,6 +13,7 @@ class PathValidatorTest {
     fun `isValidPath returns true for valid music path`() {
         assertTrue(validator.isValidPath("/storage/emulated/0/Music/song.mp3"))
         assertTrue(validator.isValidPath("/data/user/0/com.hitsuji.sheepplayer2/cache/download.wav"))
+        assertTrue(validator.isValidPath("/data/user/0/com.hitsuji.sheepplayer2/cache/cached_file.tmp"))
     }
 
     @Test
