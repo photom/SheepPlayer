@@ -126,7 +126,7 @@ class TracksFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         if (!hasLoadedInitialData) {
-            tracksViewModel.loadTracks()
+            tracksViewModel.loadTracks(showLoading = true)
             hasLoadedInitialData = true
         }
     }
@@ -139,8 +139,8 @@ class TracksFragment : Fragment() {
         }
     }
 
-    fun onMusicDataLoaded() {
-        tracksViewModel.loadTracks()
+    fun onMusicDataLoaded(showLoading: Boolean = true) {
+        tracksViewModel.loadTracks(showLoading = showLoading)
     }
 
     override fun onDestroyView() {

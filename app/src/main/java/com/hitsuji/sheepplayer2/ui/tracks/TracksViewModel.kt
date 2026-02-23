@@ -18,8 +18,8 @@ class TracksViewModel(
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
-    fun loadTracks() {
-        _isLoading.value = true
+    fun loadTracks(showLoading: Boolean = true) {
+        if (showLoading) _isLoading.value = true
         viewModelScope.launch {
             try {
                 val result = getMusicLibraryUseCase()
@@ -27,7 +27,7 @@ class TracksViewModel(
             } catch (e: Exception) {
                 // Handle error
             } finally {
-                _isLoading.value = false
+                if (showLoading) _isLoading.value = false
             }
         }
     }

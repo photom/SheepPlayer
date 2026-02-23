@@ -183,14 +183,16 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
             musicLibraryRepository.libraryUpdates.collect { event ->
                 when (event) {
                     is LibraryUpdateEvent.Progress -> {
-                        musicDataHandler.updateWithGoogleDriveData()
+                        // Silent update for progress during Google Drive access
+                        musicDataHandler.updateWithGoogleDriveData(showLoading = false)
                     }
                     is LibraryUpdateEvent.Success -> {
-                        musicDataHandler.updateWithGoogleDriveData()
-                        Toast.makeText(this@MainActivity, "Google Drive music loaded", Toast.LENGTH_SHORT).show()
+                        // Show loading during the final whole list update
+                        musicDataHandler.updateWithGoogleDriveData(showLoading = true)
+                        Toast.makeText(this@MainActivity, "Google Drive music sync complete", Toast.LENGTH_SHORT).show()
                     }
                     is LibraryUpdateEvent.Error -> {
-                        Toast.makeText(this@MainActivity, "Error: ${event.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, "Sync Error: ${event.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -203,8 +205,8 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
     }
 
     // FragmentNotifier implementation (ISP)
-    override fun notifyDataLoaded() {
-        notifyFragmentsDataLoaded()
+    override fun notifyDataLoaded(showLoading: Boolean) {
+        notifyFragmentsDataLoaded(showLoading)
     }
 
     override fun notifyPlaybackStateChanged() {
@@ -294,11 +296,11 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
         }
     }
 
-    private fun notifyFragmentsDataLoaded() {
+    private fun notifyFragmentsDataLoaded(showLoading: Boolean) {
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main)
         navHostFragment?.childFragmentManager?.fragments?.forEach { fragment ->
             if (fragment is com.hitsuji.sheepplayer2.ui.tracks.TracksFragment) {
-                fragment.onMusicDataLoaded()
+                fragment.onMusicDataLoaded(showLoading)
             }
         }
     }

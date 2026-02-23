@@ -8,12 +8,16 @@ import android.provider.MediaStore
 import com.hitsuji.sheepplayer2.Album
 import com.hitsuji.sheepplayer2.Artist
 import com.hitsuji.sheepplayer2.Track
+import com.hitsuji.sheepplayer2.domain.service.PathValidator
 import com.hitsuji.sheepplayer2.interfaces.MusicRepositoryInterface
 import com.hitsuji.sheepplayer2.utils.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class MusicRepository(private val context: Context) : MusicRepositoryInterface {
+class MusicRepository(
+    private val context: Context,
+    private val pathValidator: PathValidator
+) : MusicRepositoryInterface {
 
     override suspend fun loadMusicData(): List<Artist> = withContext(Dispatchers.IO) {
         val tracks = queryMusicFromMediaStore()
@@ -67,8 +71,8 @@ class MusicRepository(private val context: Context) : MusicRepositoryInterface {
                 val duration = cursor.getLong(durationColumn)
                 val filePath = cursor.getString(dataColumn)
 
-                // Validate file path for security
-                if (filePath.isNullOrBlank() || !isValidAudioFile(filePath)) {
+                // Validate file path for security using injected domain service
+                if (filePath.isNullOrBlank() || !pathValidator.isValidPath(filePath)) {
                     continue
                 }
                 val albumId = cursor.getLong(albumIdColumn)
@@ -117,38 +121,5 @@ class MusicRepository(private val context: Context) : MusicRepositoryInterface {
         }
 
         return allArtists
-    }
-
-    private fun isValidAudioFile(filePath: String): Boolean {
-        return try {
-            // Basic input validation
-            if (filePath.isBlank() || filePath.length > 4096) return false
-
-            // Security: Check for path traversal attacks
-            if (filePath.contains("../") || filePath.contains("..\\") ||
-                filePath.contains("//") || filePath.contains("\\\\")) {
-                return false
-            }
-
-            // Security: Ensure path is within expected directories
-            val normalizedPath = filePath.lowercase()
-            if (!normalizedPath.startsWith("/storage/") &&
-                !normalizedPath.startsWith("/sdcard/") &&
-                !normalizedPath.startsWith("/data/media/")) {
-                return false
-            }
-
-            // Validate file extension
-            val validExtensions = setOf(".mp3", ".m4a", ".wav", ".flac", ".ogg", ".aac")
-            val extension = filePath.substringAfterLast(".", "").lowercase()
-
-            // Security: Additional character validation
-            val allowedChars = Regex("[a-zA-Z0-9._/\\-\\s]+")
-            return validExtensions.contains(".$extension") &&
-                   allowedChars.matches(filePath)
-        } catch (e: Exception) {
-            android.util.Log.w("MusicRepository", "File validation error for: $filePath", e)
-            false
-        }
     }
 }

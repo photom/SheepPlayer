@@ -23,7 +23,7 @@ import com.hitsuji.sheepplayer2.domain.usecase.*
 class AppContainer(private val context: Context) {
 
     val musicRepository: MusicRepositoryInterface by lazy {
-        MusicRepository(context)
+        MusicRepository(context, pathValidator)
     }
 
     val musicLibraryRepository: MusicLibraryRepository by lazy {
@@ -50,7 +50,7 @@ class AppContainer(private val context: Context) {
     }
 
     val artistImageRepository: ArtistImageRepository by lazy {
-        ArtistImageService(context)
+        ArtistImageService(context, binarySignatureValidator)
     }
 
     val musicPlayer: MusicPlayerInterface by lazy {

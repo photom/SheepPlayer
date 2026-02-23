@@ -12,6 +12,8 @@ class MusicPlayerManager(private val musicPlayer: MusicPlayerInterface) : Playba
     override var isPlaying: Boolean = false
         private set
 
+    private var isPreparing: Boolean = false
+
     init {
         setupMusicPlayerCallbacks()
     }
@@ -19,26 +21,31 @@ class MusicPlayerManager(private val musicPlayer: MusicPlayerInterface) : Playba
     private fun setupMusicPlayerCallbacks() {
         musicPlayer.setOnPlaybackStateChangeListener(object : PlaybackStateListener {
             override fun onPlaybackStarted(track: Track) {
+                isPreparing = false
                 isPlaying = true
                 onPlaybackStateChangeListener?.invoke()
             }
 
             override fun onPlaybackPaused(track: Track) {
+                isPreparing = false
                 isPlaying = false
                 onPlaybackStateChangeListener?.invoke()
             }
 
             override fun onPlaybackStopped() {
+                isPreparing = false
                 isPlaying = false
                 onPlaybackStateChangeListener?.invoke()
             }
 
             override fun onPlaybackError(track: Track, error: String) {
+                isPreparing = false
                 isPlaying = false
                 onPlaybackStateChangeListener?.invoke()
             }
 
             override fun onPlaybackCompleted(track: Track) {
+                isPreparing = false
                 isPlaying = false
                 onPlaybackCompletionListener?.invoke(track)
                 onPlaybackStateChangeListener?.invoke()
@@ -60,14 +67,20 @@ class MusicPlayerManager(private val musicPlayer: MusicPlayerInterface) : Playba
     override fun playTrack(track: Track) {
         currentPlayingTrack = track
         isPlaying = true
+        isPreparing = true
         musicPlayer.loadTrack(track, autoPlay = true)
     }
 
     override fun syncPlaybackState() {
-        isPlaying = musicPlayer.isPlaying()
+        // Only sync if we are not in the middle of preparing a track
+        if (!isPreparing) {
+            isPlaying = musicPlayer.isPlaying()
+        }
     }
 
     override fun togglePlayback(): Boolean {
+        if (isPreparing) return true // Ignore toggle during preparation
+
         return if (isPlaying) {
             musicPlayer.pause()
         } else {

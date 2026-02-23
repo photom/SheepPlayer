@@ -35,7 +35,6 @@ class MusicDataHandler(
     fun loadLocalMusicData() {
         lifecycleScope.launch {
             try {
-                // GetMusicLibraryUseCase handles merging local and cached remote data
                 val artists = getMusicLibraryUseCase()
                 allArtists.clear()
                 allArtists.addAll(artists)
@@ -47,7 +46,7 @@ class MusicDataHandler(
                     callback?.onNoMusicFound()
                 } else {
                     callback?.onLocalMusicLoaded(allArtists.toList())
-                    fragmentNotifier.notifyDataLoaded()
+                    fragmentNotifier.notifyDataLoaded(showLoading = true)
                 }
             } catch (e: Exception) {
                 Log.e("MusicDataHandler", "Failed to load music data", e)
@@ -60,17 +59,14 @@ class MusicDataHandler(
         Log.d("MusicDataHandler", "*** refreshGoogleDriveMusic() called ***")
         lifecycleScope.launch {
             try {
-                // Initial load from whatever is currently available (use case handles this)
                 val artists = getMusicLibraryUseCase()
                 allArtists.clear()
                 allArtists.addAll(artists)
 
                 Log.d("MusicDataHandler", "Current library has ${allArtists.size} artists")
 
-                // Notify UI with current music first
-                fragmentNotifier.notifyDataLoaded()
+                fragmentNotifier.notifyDataLoaded(showLoading = true)
 
-                // Start the metadata loading service to fetch fresh remote data
                 Log.d("MusicDataHandler", "*** Starting metadata loading service ***")
                 MetadataLoadingService.startService(context)
 
@@ -81,23 +77,19 @@ class MusicDataHandler(
         }
     }
     
-    fun updateWithGoogleDriveData() {
+    fun updateWithGoogleDriveData(showLoading: Boolean = false) {
         lifecycleScope.launch {
             try {
-                // Refresh data using the use case (it will pick up newly cached remote data)
                 val updatedArtists = getMusicLibraryUseCase()
                 
                 allArtists.clear()
                 allArtists.addAll(updatedArtists)
 
-                // Notify fragments about data update
-                fragmentNotifier.notifyDataLoaded()
+                fragmentNotifier.notifyDataLoaded(showLoading = showLoading)
                 
                 val totalTracks = allArtists.sumOf { it.albums.sumOf { album -> album.tracks.size } }
                 Log.d("MusicDataHandler", "Updated music library via Use Case: ${allArtists.size} artists, $totalTracks tracks")
                 
-                // We don't have the specific Google Drive count easily here without filtering, 
-                // but the Use Case has done the heavy lifting of merging.
                 callback?.onGoogleDriveMusicLoaded(updatedArtists.filter { it.albums.any { it.tracks.any { it.googleDriveFileId != null } } })
 
             } catch (e: Exception) {

@@ -17,7 +17,7 @@ class PlayTrackUseCase(
     suspend operator fun invoke(track: Track) {
         if (track.filePath.startsWith("gdrive://")) {
             val fileId = track.filePath.removePrefix("gdrive://")
-            val cacheFile = File(cacheDir, "gdrive_${fileId}.tmp")
+            val cacheFile = File(cacheDir, "gdrive_${fileId}.mp3")
             
             val localPath = withContext(Dispatchers.IO) {
                 if (cacheFile.exists() && cacheFile.length() > 0) {
