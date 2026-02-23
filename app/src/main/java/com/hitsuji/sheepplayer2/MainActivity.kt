@@ -135,7 +135,7 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
         musicDataHandler.setCallback(object : MusicDataHandler.MusicDataCallback {
             override fun onLocalMusicLoaded(artists: List<Artist>) {}
             override fun onGoogleDriveMusicLoaded(artists: List<Artist>) {
-                Toast.makeText(this@MainActivity, "Google Drive music loaded", Toast.LENGTH_SHORT).show()
+                // Toast removed as it's redundant with the global sync indicator and final sync complete toast
             }
             override fun onMusicLoadError(message: String) {
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
@@ -193,7 +193,7 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
                     is LibraryUpdateEvent.Success -> {
                         showGlobalSyncIndicator(false)
                         musicDataHandler.updateWithGoogleDriveData(showLoading = false)
-                        Toast.makeText(this@MainActivity, "Google Drive music sync complete", Toast.LENGTH_SHORT).show()
+                        // Toast removed as it's redundant with the global sync indicator state change
                     }
                     is LibraryUpdateEvent.Error -> {
                         showGlobalSyncIndicator(false)

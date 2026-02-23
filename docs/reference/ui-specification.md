@@ -137,6 +137,7 @@ The indicator follows the state of the `LibraryUpdateEvent` stream:
 ### 3. UX Rationale
 -   **Cross-Fragment Visibility**: By placing the indicator in the `MainActivity` layout rather than individual fragments, the user receives uninterrupted feedback even while navigating between Tracks, Playing, and Pictures.
 -   **Non-Blocking Feedback**: The indicator is small and positioned at the periphery, allowing the user to continue browsing the existing library while the update happens in the background.
+-   **Minimalist Notification Strategy**: To prevent user fatigue and UI clutter, redundant "Toast" notifications (e.g., "Google Drive music loaded") have been removed during the sync process. The visual state of the Global Sync Indicator serves as the primary and sufficient signal for the synchronization lifecycle.
 
 ## 🛠️ Feature Specifications
 

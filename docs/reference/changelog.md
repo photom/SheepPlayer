@@ -8,9 +8,9 @@
     -   Introduced `PathValidator` domain service to centralize file security.
     -   Introduced `BinarySignatureValidator` for magic number verification.
     -   Added strict invariants to the `Track` entity.
--   **Global Sync Indicator**: 
-    -   Unified loading status across all fragments.
-    -   Implemented persistent "Syncing..." chip in `MainActivity`.
+-   **Unified UI Feedback**: 
+    -   Implemented a persistent "Syncing..." chip in `MainActivity` for cross-fragment visibility.
+    -   Removed redundant and repetitive Toast notifications during the Google Drive synchronization process to improve UX and reduce UI clutter.
     -   Refactored `MetadataLoadingService` to emit `Started` events for immediate feedback.
 -   **Stability & Playback Fixes**:
     -   Resolved "MediaPlayer not ready" errors by introducing an `isPreparing` state in `MusicPlayerManager`.

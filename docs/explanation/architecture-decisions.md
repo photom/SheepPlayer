@@ -93,8 +93,9 @@ Data in SheepPlayer follows a strict, unidirectional path:
 
 ## ⌛ User Feedback & Background Operations
 
-In a music player, many operations occur in the background to ensure a smooth UI. SheepPlayer prioritizes user feedback during these asynchronous tasks:
+In a music player, many operations occur in the background to ensure a smooth UI. SheepPlayer prioritizes user feedback during these asynchronous tasks through a **Minimalist Notification Strategy**:
 
 -   **Asynchronous Processing**: Tasks like metadata scanning and image retrieval are offloaded to background threads.
--   **Explicit State Signaling**: ViewModels explicitly transition to a `Loading` state. This state is interpreted by the UI layer to display appropriate loading icons or spinners.
--   **Contextual Feedback**: Instead of generic progress bars, SheepPlayer uses contextual indicators, such as an animated "Sheep" for image discovery, making the wait time feel more integrated into the app's personality.
+-   **Explicit State Signaling**: ViewModels and Services explicitly transition through states (Started, Progress, Success, Error).
+-   **Global Sync Indicator**: Instead of repetitive and intrusive Toast notifications that can clutter the UI, SheepPlayer uses a persistent "Syncing..." chip at the activity level. This provides a unified "running icon" that is visible across all fragments, signaling background work without interrupting the user's flow.
+-   **Contextual Feedback**: For specific tasks, the app uses character-driven indicators, such as an animated "Sheep" for image discovery, making the wait time feel more integrated into the app's personality.
