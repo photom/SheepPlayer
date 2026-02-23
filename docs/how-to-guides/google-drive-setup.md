@@ -94,7 +94,52 @@ classDiagram
 
 ### 2. Get SHA-1 Fingerprints
 
-Run the following procedures in your project directory:
+The application logs indicate the following SHA-1 fingerprint is being used:
+`...`
+
+Register this fingerprint in your Google Cloud Console for the package name `com.hitsuji.sheepplayer2`.
+
+#### Why am I seeing "Invalid key value" or "Authentication Failed"?
+The Google Auth server validates that the request comes from a trusted app by checking two things:
+1.  **Package Name**: Must match exactly (e.g., `com.hitsuji.sheepplayer2`).
+2.  **SHA-1 Fingerprint**: Must match the certificate used to sign the APK.
+
+The error `Invalid key value: xti79PtLiM6l5YnIIZF1P5bePt0=...` means the server received your app's SHA-1 (encoded in base64 as `xti79Pt...`) but couldn't find a matching entry in your Google Cloud Project. Registered fingerprints act as a whitelist; without an exact match, the API will refuse to issue tokens.
+
+### 2.1 Security: Verifying App Ownership (Anti-Impersonation)
+
+Google may warn that your app is "not configured to use secure OAuth flows" or "may be vulnerable to impersonation." This happens when your Android client ID is not associated with a verified domain.
+
+To fix this and verify ownership:
+
+1.  **Get your SHA-256 Fingerprint**:
+    Run this command in your terminal (using your JDK path):
+    ```bash
+    keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android | grep SHA256
+    ```
+2.  **Create a Digital Asset Links file**:
+    Create a file named `assetlinks.json` with the following content (replace `<SHA256>` with the fingerprint from step 1):
+    ```json
+    [{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.hitsuji.sheepplayer2",
+        "sha256_cert_fingerprints": ["<SHA256>"]
+      }
+    }]
+    ```
+3.  **Host the file**:
+    Upload this file to your verified web domain at:
+    `https://<your-domain>/.well-known/assetlinks.json`
+    *Note: The file must be served with `Content-Type: application/json`.*
+
+4.  **Link Domain in Google Cloud Console**:
+    - Go to **APIs & Services > OAuth consent screen**.
+    - Add your domain to the **Authorized domains** list.
+    - Go to your **Android Client ID** and ensure the package name matches.
+
+Run the following procedures if you need to generate it again:
 
 -   **For Debug Builds**: Use the `keytool` utility to list the contents of your local `debug.keystore`, typically found in the `.android` directory of your user home. The default alias is `androiddebugkey` and the default password is `android`.
 -   **For Release Builds**: If you have a production keystore, use the `keytool` utility with your specific keystore path and alias to retrieve the SHA-1 fingerprint.

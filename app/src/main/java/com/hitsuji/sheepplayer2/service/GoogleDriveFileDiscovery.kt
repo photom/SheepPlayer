@@ -1,6 +1,7 @@
 package com.hitsuji.sheepplayer2.service
 
 import android.util.Log
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAuthIOException
 import com.google.api.services.drive.Drive
 import com.hitsuji.sheepplayer2.service.GoogleDriveResult
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +16,7 @@ import kotlinx.coroutines.withContext
  * @param driveService The authenticated Google Drive service instance
  * 
  * @author SheepPlayer Team
- * @version 1.0
+ * @version 1.1
  * @since 1.0
  */
 class GoogleDriveFileDiscovery(private val driveService: Drive) {
@@ -39,12 +40,6 @@ class GoogleDriveFileDiscovery(private val driveService: Drive) {
     
     /**
      * Discovers all music files from Google Drive.
-     * 
-     * This method searches through all supported audio MIME types
-     * and returns a comprehensive list of audio files found.
-     * 
-     * @return GoogleDriveResult containing list of discovered files
-     * @throws GoogleDriveServiceException if file discovery fails
      */
     suspend fun discoverAllMusicFiles(): GoogleDriveResult<List<com.google.api.services.drive.model.File>> {
         return withContext(Dispatchers.IO) {
@@ -58,6 +53,12 @@ class GoogleDriveFileDiscovery(private val driveService: Drive) {
                         val filesForType = discoverFilesByMimeType(mimeType)
                         musicFiles.addAll(filesForType)
                         Log.d(TAG, "Found ${filesForType.size} files of type $mimeType")
+                    } catch (e: GoogleAuthIOException) {
+                        Log.e(TAG, "Auth error discovering files for type $mimeType", e)
+                        return@withContext GoogleDriveResult.Error<List<com.google.api.services.drive.model.File>>(
+                            "Authorization failed. Please check your Google Cloud configuration and SHA-1 fingerprint.",
+                            e
+                        )
                     } catch (e: Exception) {
                         Log.w(TAG, "Error discovering files for type $mimeType", e)
                     }
@@ -75,12 +76,6 @@ class GoogleDriveFileDiscovery(private val driveService: Drive) {
     
     /**
      * Discovers all music files for a specific MIME type.
-     * 
-     * This method discovers all files for a single MIME type without callbacks,
-     * making it suitable for use in flows without context violations.
-     * 
-     * @param mimeType The audio MIME type to search for
-     * @return GoogleDriveResult containing list of discovered files
      */
     suspend fun discoverAllMusicFilesByType(mimeType: String): GoogleDriveResult<List<com.google.api.services.drive.model.File>> {
         return withContext(Dispatchers.IO) {
@@ -92,6 +87,12 @@ class GoogleDriveFileDiscovery(private val driveService: Drive) {
                 
                 GoogleDriveResult.Success(files)
                 
+            } catch (e: GoogleAuthIOException) {
+                Log.e(TAG, "Auth error discovering files for $mimeType", e)
+                GoogleDriveResult.Error(
+                    "Authentication failed for $mimeType. Ensure SHA-1 is correctly registered in Google Cloud Console.",
+                    e
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Error discovering files for $mimeType", e)
                 GoogleDriveResult.Error("Discovery failed for $mimeType: ${e.message}", e)

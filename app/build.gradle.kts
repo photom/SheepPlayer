@@ -104,6 +104,7 @@ dependencies {
     
     // Audio metadata extraction
     implementation("net.jthink:jaudiotagger:3.0.1")
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

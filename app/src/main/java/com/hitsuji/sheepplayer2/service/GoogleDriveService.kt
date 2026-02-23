@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAuthIOException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.json.gson.GsonFactory
@@ -33,7 +34,7 @@ import java.util.Collections
  * @param context Android context for service operations
  * 
  * @author SheepPlayer Team
- * @version 2.0
+ * @version 2.1
  * @since 2.0
  */
 class GoogleDriveService(private val context: Context) : GoogleDriveServiceInterface {
@@ -175,7 +176,8 @@ class GoogleDriveService(private val context: Context) : GoogleDriveServiceInter
                 // Use file discovery service to find all music files
                 val discoveryResult = fileDiscovery.discoverAllMusicFiles()
                 if (discoveryResult is GoogleDriveResult.Error) {
-                    return@withContext GoogleDriveResult.Error<List<Artist>>(discoveryResult.message, discoveryResult.exception)
+                    val message = translateAuthError(discoveryResult.message, discoveryResult.exception)
+                    return@withContext GoogleDriveResult.Error<List<Artist>>(message, discoveryResult.exception)
                 }
                 
                 val musicFiles = (discoveryResult as GoogleDriveResult.Success).data
@@ -203,7 +205,8 @@ class GoogleDriveService(private val context: Context) : GoogleDriveServiceInter
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading music from Google Drive", e)
-                GoogleDriveResult.Error("Failed to load music: ${e.message}", e)
+                val message = translateAuthError("Failed to load music: ${e.message}", e)
+                GoogleDriveResult.Error(message, e)
             }
         }
     }
@@ -228,6 +231,8 @@ class GoogleDriveService(private val context: Context) : GoogleDriveServiceInter
                         val discoveryResult = fileDiscovery.discoverAllMusicFilesByType(mimeType)
                         if (discoveryResult is GoogleDriveResult.Error) {
                             Log.w(TAG, "Error discovering $mimeType files: ${discoveryResult.message}")
+                            val message = translateAuthError(discoveryResult.message, discoveryResult.exception)
+                            emit(GoogleDriveResult.Error(message, discoveryResult.exception))
                             continue
                         }
                         
@@ -296,12 +301,15 @@ class GoogleDriveService(private val context: Context) : GoogleDriveServiceInter
                         
                     } catch (e: Exception) {
                         Log.w(TAG, "Error processing $mimeType files", e)
+                        val message = translateAuthError("Error processing $mimeType", e)
+                        emit(GoogleDriveResult.Error(message, e))
                     }
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error in sequential metadata loading", e)
-                emit(GoogleDriveResult.Error("Failed to load music: ${e.message}", e))
+                val message = translateAuthError("Failed to load music: ${e.message}", e)
+                emit(GoogleDriveResult.Error(message, e))
             }
         }.flowOn(Dispatchers.IO)
     
@@ -350,7 +358,8 @@ class GoogleDriveService(private val context: Context) : GoogleDriveServiceInter
                 GoogleDriveResult.Success(outputStream.toByteArray())
             } catch (e: Exception) {
                 Log.e(TAG, "Error downloading file $fileId", e)
-                GoogleDriveResult.Error("Failed to download file: ${e.message}", e)
+                val message = translateAuthError("Failed to download file: ${e.message}", e)
+                GoogleDriveResult.Error(message, e)
             }
         }
     }
@@ -379,6 +388,17 @@ class GoogleDriveService(private val context: Context) : GoogleDriveServiceInter
         return Companion.latestGoogleDriveArtists
     }
     
+    /**
+     * Translates technical authentication errors into helpful user instructions.
+     */
+    private fun translateAuthError(originalMessage: String, throwable: Throwable?): String {
+        return if (throwable is GoogleAuthIOException || originalMessage.contains("auth", ignoreCase = true)) {
+            "Google Drive Authentication Failed. Please ensure your SHA-1 fingerprint is correctly registered in the Google Cloud Console for packageName: ${context.packageName}"
+        } else {
+            originalMessage
+        }
+    }
+
     fun destroy() {
         cleanup()
         authenticator.cleanup()
