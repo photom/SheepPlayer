@@ -3,12 +3,16 @@ package com.hitsuji.sheepplayer2
 import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
+import com.hitsuji.sheepplayer2.domain.service.PathValidator
 import com.hitsuji.sheepplayer2.interfaces.MusicPlayerInterface
 import com.hitsuji.sheepplayer2.interfaces.PlaybackStateListener
 import java.io.File
 import java.io.IOException
 
-class MusicPlayer(private val context: Context) : MusicPlayerInterface {
+class MusicPlayer(
+    private val context: Context,
+    private val pathValidator: PathValidator
+) : MusicPlayerInterface {
     private var mediaPlayer: MediaPlayer? = null
     private var currentTrack: Track? = null
     private var isInitialized = false
@@ -38,10 +42,18 @@ class MusicPlayer(private val context: Context) : MusicPlayerInterface {
     }
 
     private fun loadLocalTrack(track: Track): Boolean {
-        // Validate file path for security
-        if (!isValidTrackFile(track.filePath)) {
+        // Validate file path for security using domain service
+        if (!pathValidator.isValidPath(track.filePath)) {
             Log.e("MusicPlayer", "Invalid or unsafe file path: ${track.filePath}")
             playbackStateListener?.onPlaybackError(track, "Invalid file path")
+            return false
+        }
+
+        // Double check existence & readability as per security test plan
+        val file = File(track.filePath)
+        if (!file.exists() || !file.canRead()) {
+            Log.e("MusicPlayer", "File not found or not readable: ${track.filePath}")
+            playbackStateListener?.onPlaybackError(track, "File not readable")
             return false
         }
 
@@ -219,63 +231,6 @@ class MusicPlayer(private val context: Context) : MusicPlayerInterface {
             Log.d("MusicPlayer", "MediaPlayer released")
         } catch (e: Exception) {
             Log.e("MusicPlayer", "Error releasing MediaPlayer", e)
-        }
-    }
-
-    private fun isValidTrackFile(filePath: String): Boolean {
-        return try {
-            // Basic input validation
-            if (filePath.isBlank() || filePath.length > 4096) {
-                Log.w("MusicPlayer", "Invalid file path: empty or too long")
-                return false
-            }
-
-            // Security: Check for various path traversal patterns
-            val suspiciousPatterns = listOf("../", "..\\", "//", "\\\\", "%2e%2e", "..%2f", "..%5c")
-            if (suspiciousPatterns.any { filePath.contains(it, ignoreCase = true) }) {
-                Log.w("MusicPlayer", "Path traversal attempt detected: $filePath")
-                return false
-            }
-
-            // Security: Validate allowed directories
-            // Note: cacheDir path should be allowed.
-            val normalizedPath = filePath.lowercase()
-            // Added /data/user/ for app cache paths in multi-user environments
-            // Added context.cacheDir parent path to whitelist
-            val allowedPrefixes = mutableListOf(
-                "/storage/", 
-                "/sdcard/", 
-                "/data/media/", 
-                "/android_asset/",
-                context.cacheDir.absolutePath.lowercase(),
-                context.filesDir.absolutePath.lowercase()
-            )
-            
-            if (!allowedPrefixes.any { normalizedPath.startsWith(it) }) {
-                Log.w("MusicPlayer", "File path outside allowed directories: $filePath")
-                return false
-            }
-
-            // Security: Check for symbolic link attacks
-            val file = File(filePath)
-            val canonicalPath = file.canonicalPath
-            // Allow if it resolves to our cache or files dir
-            if (canonicalPath != filePath && 
-                !canonicalPath.lowercase().startsWith("/storage/") &&
-                !canonicalPath.lowercase().startsWith(context.cacheDir.absolutePath.lowercase())
-            ) {
-                Log.w("MusicPlayer", "Potential symbolic link attack: $filePath -> $canonicalPath")
-                return false
-            }
-
-            // Verify file properties
-            file.exists() && file.canRead() && file.isFile && file.length() > 0
-        } catch (e: SecurityException) {
-            Log.e("MusicPlayer", "Security exception validating file path: $filePath", e)
-            false
-        } catch (e: Exception) {
-            Log.e("MusicPlayer", "Error validating file path: $filePath", e)
-            false
         }
     }
 }

@@ -12,6 +12,8 @@ import com.hitsuji.sheepplayer2.repository.MusicRepository
 import com.hitsuji.sheepplayer2.repository.MusicLibraryRepositoryImpl
 import com.hitsuji.sheepplayer2.service.GoogleDriveService
 import com.hitsuji.sheepplayer2.service.ArtistImageService
+import com.hitsuji.sheepplayer2.domain.service.BinarySignatureValidator
+import com.hitsuji.sheepplayer2.domain.service.PathValidator
 import com.hitsuji.sheepplayer2.domain.usecase.*
 
 /**
@@ -28,6 +30,21 @@ class AppContainer(private val context: Context) {
         MusicLibraryRepositoryImpl()
     }
 
+    val pathValidator: PathValidator by lazy {
+        PathValidator(listOf(
+            "/storage/",
+            "/sdcard/",
+            "/data/media/",
+            "/android_asset/",
+            context.cacheDir.absolutePath,
+            context.filesDir.absolutePath
+        ))
+    }
+
+    val binarySignatureValidator: BinarySignatureValidator by lazy {
+        BinarySignatureValidator()
+    }
+
     val googleDriveService: GoogleDriveServiceInterface by lazy {
         GoogleDriveService(context)
     }
@@ -37,7 +54,7 @@ class AppContainer(private val context: Context) {
     }
 
     val musicPlayer: MusicPlayerInterface by lazy {
-        MusicPlayer(context)
+        MusicPlayer(context, pathValidator)
     }
 
     val musicPlayerManager: PlaybackManagerInterface by lazy {

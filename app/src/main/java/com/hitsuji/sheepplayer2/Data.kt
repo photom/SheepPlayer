@@ -24,7 +24,12 @@ data class Track(
     val trackNumber: Int? = null, // Track number for ordering within albums
     val googleDriveFileId: String? = null, // Google Drive file ID for caching
     val isMetadataLoaded: Boolean = true // Track if metadata is fully loaded
-)
+) {
+    init {
+        require(duration >= 0) { "Track duration cannot be negative" }
+        require(title.isNotBlank()) { "Track title cannot be blank" }
+    }
+}
 
 data class CachedMetadata(
     val fileId: String,
