@@ -15,19 +15,13 @@ class TracksViewModel(
     private val _artists = MutableLiveData<List<Artist>>()
     val artists: LiveData<List<Artist>> = _artists
 
-    private val _isLoading = MutableLiveData<Boolean>()
-    val isLoading: LiveData<Boolean> = _isLoading
-
     fun loadTracks(showLoading: Boolean = true) {
-        if (showLoading) _isLoading.value = true
         viewModelScope.launch {
             try {
                 val result = getMusicLibraryUseCase()
                 _artists.value = result
             } catch (e: Exception) {
                 // Handle error
-            } finally {
-                if (showLoading) _isLoading.value = false
             }
         }
     }

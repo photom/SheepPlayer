@@ -86,8 +86,9 @@ graph TD
 
 1.  **Repository Pattern**: Mediates between the Domain and Data mapping layers using a collection-like interface for accessing domain objects.
 2.  **UseCase (Interactor) Pattern**: Encapsulates application-specific business rules.
-3.  **Dependency Injection**: Facilitates loose coupling and testability.
-4.  **Mapper Pattern**: Transforms data between layers (e.g., Database Model -> Domain Entity -> UI Model).
+3.  **Domain Service Pattern**: Handles stateless business logic that doesn't naturally fit into an Entity (e.g., `PathValidator`, `BinarySignatureValidator`). These services maintain SRP by isolating complex validation rules.
+4.  **Dependency Injection**: Facilitates loose coupling and testability.
+5.  **Mapper Pattern**: Transforms data between layers (e.g., Database Model -> Domain Entity -> UI Model).
 
 ## Benefits Achieved
 

@@ -39,6 +39,7 @@ graph TD
 ### 1. `domain/` (The Core)
 Contains the essential business rules of the music player. No Android dependencies.
 -   **`model/`**: `Track`, `Album`, `Artist` (Entities) and `Duration`, `FilePath` (Value Objects).
+-   **`service/`**: Stateless domain logic like `PathValidator` and `BinarySignatureValidator`.
 -   **`usecase/`**:
     -   **`GetMusicLibraryUseCase`**: Orchestrates fetching and merging music from local and remote sources.
     -   **`PlayTrackUseCase`**: Handles track preparation (including resolving/downloading remote files) and initiating playback.

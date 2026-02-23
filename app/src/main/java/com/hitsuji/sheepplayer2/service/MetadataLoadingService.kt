@@ -94,6 +94,9 @@ class MetadataLoadingService : Service() {
     }
     
     private inner class UpdateHelper {
+        fun sendLoadingStarted() {
+            serviceScope.launch { musicLibraryRepository.emitUpdate(LibraryUpdateEvent.Started) }
+        }
         fun sendMetadataUpdate(artists: List<Artist>, progress: Int, total: Int) {
             serviceScope.launch { musicLibraryRepository.emitUpdate(LibraryUpdateEvent.Progress(artists, progress, total)) }
         }
@@ -194,6 +197,7 @@ class MetadataLoadingService : Service() {
             return
         }
         progressTracker.reset()
+        updateHelper.sendLoadingStarted()
         serviceScope.launch {
             try {
                 processMetadataSequentially()

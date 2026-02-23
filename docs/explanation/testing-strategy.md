@@ -37,9 +37,11 @@ flowchart TD
 ## 🔬 1. Domain Layer Testing (Pure Unit Tests)
 The domain layer is pure Kotlin and has zero Android dependencies, making tests extremely fast.
 
--   **Entity Invariants**: Test that a `Track` entity rejects negative durations or invalid path formats during creation.
--   **Use Case Orchestration**: Use a mock `MusicRepository` to test that `GetMusicLibraryUseCase` correctly groups tracks into artists and albums.
--   **Example**: `PlayTrackUseCase` should only call the player if the track is valid.
+-   **Entity Invariants**: `TrackTest.kt` verifies that the domain rejects negative durations or blank titles during instantiation.
+-   **Value Objects**: `DurationTest.kt` ensures formatting logic and equality rules are strictly enforced.
+-   **Security Services**: `PathValidatorTest.kt` and `BinarySignatureValidatorTest.kt` provide 100% coverage for traversal prevention and file format verification.
+-   **Use Case Orchestration**: `PlayTrackUseCaseTest.kt` and `TogglePlaybackUseCaseTest.kt` utilize **Fakes** (e.g., `FakePlaybackManager`, `FakeGoogleDriveService`) to verify orchestration logic without side effects.
+-   **Library Merging**: `GetMusicLibraryUseCaseTest.kt` ensures local and remote music sources are merged and de-duplicated correctly.
 
 ## 💾 2. Data Layer Testing (Unit & Integration)
 Focuses on data mapping and security validation.

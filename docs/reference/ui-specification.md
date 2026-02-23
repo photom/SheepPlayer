@@ -116,6 +116,28 @@ classDiagram
     MainActivity ..> PlayingFragment : update UI
 ```
 
+## 🔄 Syncing Status UX/UI
+
+The application provides a unified "Running Icon" system to give users continuous feedback during whole play list updates or background synchronization.
+
+### 1. Global Sync Indicator (The Running Icon)
+-   **Visual Design**:
+    -   **Component**: A rounded horizontal chip.
+    -   **Color Palette**: Primary Teal background (`#009688`) with high-contrast White text and icons.
+    -   **Motion**: Contains a small, white **Indeterminate ProgressBar** to indicate active processing.
+    -   **Elevation**: `4dp` to ensure visibility over scrollable fragment content.
+-   **Placement**: Positioned in the top-right corner of the `MainActivity` container, making it globally visible regardless of the active fragment tab.
+
+### 2. Lifecycle and Transitions
+The indicator follows the state of the `LibraryUpdateEvent` stream:
+-   **START**: Appears immediately when a sync is initiated (via `Started` event).
+-   **PERSIST**: Remains visible during the metadata fetching phase (multiple `Progress` events).
+-   **FINISH**: Smoothly transitions to `GONE` only after the entire library is merged and stable (`Success` or `Error` events).
+
+### 3. UX Rationale
+-   **Cross-Fragment Visibility**: By placing the indicator in the `MainActivity` layout rather than individual fragments, the user receives uninterrupted feedback even while navigating between Tracks, Playing, and Pictures.
+-   **Non-Blocking Feedback**: The indicator is small and positioned at the periphery, allowing the user to continue browsing the existing library while the update happens in the background.
+
 ## 🛠️ Feature Specifications
 
 ### 🔊 Audio Engine & System Integration
@@ -128,7 +150,8 @@ classDiagram
 ### 📁 Data & Library Management
 -   **Hybrid Discovery**: Merges `MediaStore` (local) and `GoogleDrive` (cloud) into a unified domain library.
 -   **Persistence**: Uses a `LocalCacheDataSource` (Room) to store cloud metadata and user playlists.
--   **Playlist Synchronization**: A `LinearProgressIndicator` at the top of the library view indicates active synchronization or persistence tasks.
+-   **Global Sync Indicator**: A persistent teal chip with a "Syncing..." status appears in the top-right corner of the app during any library update. This provides a unified "running icon" across all fragments (Tracks, Playing, Pictures).
+-   **Playlist Synchronization**: Background tasks update the domain library in real-time, with UI components observing the merged state.
 
 ### 🔐 Security & Integrity
 -   **Path Sanitization**: All file paths are validated before any `File` or `Uri` operation.

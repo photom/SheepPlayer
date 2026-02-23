@@ -182,21 +182,31 @@ class MainActivity : AppCompatActivity(), NavigationController, FragmentNotifier
         lifecycleScope.launch {
             musicLibraryRepository.libraryUpdates.collect { event ->
                 when (event) {
+                    is LibraryUpdateEvent.Started -> {
+                        showGlobalSyncIndicator(true)
+                        musicDataHandler.showLoadingIndicator(true)
+                    }
                     is LibraryUpdateEvent.Progress -> {
-                        // Silent update for progress during Google Drive access
-                        musicDataHandler.updateWithGoogleDriveData(showLoading = false)
+                        showGlobalSyncIndicator(true)
+                        musicDataHandler.updateWithGoogleDriveData(showLoading = true)
                     }
                     is LibraryUpdateEvent.Success -> {
-                        // Show loading during the final whole list update
-                        musicDataHandler.updateWithGoogleDriveData(showLoading = true)
+                        showGlobalSyncIndicator(false)
+                        musicDataHandler.updateWithGoogleDriveData(showLoading = false)
                         Toast.makeText(this@MainActivity, "Google Drive music sync complete", Toast.LENGTH_SHORT).show()
                     }
                     is LibraryUpdateEvent.Error -> {
+                        showGlobalSyncIndicator(false)
+                        musicDataHandler.showLoadingIndicator(false)
                         Toast.makeText(this@MainActivity, "Sync Error: ${event.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             }
         }
+    }
+
+    private fun showGlobalSyncIndicator(show: Boolean) {
+        binding.globalSyncIndicator.visibility = if (show) android.view.View.VISIBLE else android.view.View.GONE
     }
 
     // NavigationController implementation (ISP)

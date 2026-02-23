@@ -50,10 +50,6 @@ class TracksFragment : Fragment() {
         tracksViewModel.artists.observe(viewLifecycleOwner) { artists ->
             updateUIWithArtists(artists)
         }
-        
-        tracksViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            showSyncIndicator(isLoading)
-        }
     }
 
     private fun setupRecyclerView() {
@@ -128,14 +124,6 @@ class TracksFragment : Fragment() {
         if (!hasLoadedInitialData) {
             tracksViewModel.loadTracks(showLoading = true)
             hasLoadedInitialData = true
-        }
-    }
-
-    private fun showSyncIndicator(show: Boolean) {
-        try {
-            binding.syncIndicator.visibility = if (show) View.VISIBLE else View.GONE
-        } catch (e: Exception) {
-            Log.w("TracksFragment", "Error updating sync indicator", e)
         }
     }
 

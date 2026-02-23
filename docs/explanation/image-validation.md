@@ -67,11 +67,11 @@ The image search service utilizes quoted artist names (e.g., `"Artist Name"`) to
 
 ### Validation Process
 1.  **Download Phase**: The application downloads the complete file as a byte array.
-2.  **Magic Number Check**: The first 12 to 16 bytes are inspected and compared against the known signatures for supported image formats.
-3.  **Security Decision**: If a match is found, the image is processed; otherwise, it is immediately discarded to prevent security issues.
+2.  **Magic Number Check**: The `ArtistImageService` delegates the byte array to the **`BinarySignatureValidator`**. The first 12 to 16 bytes are inspected and compared against the known signatures for supported image formats.
+3.  **Security Decision**: If the domain service confirms a match, the image is processed; otherwise, it is immediately discarded to prevent security issues.
 
 ### Security & Logging
-The validation logic is centrally located in the `ArtistImageService`. When a valid image is detected, the service logs the specific format identified (e.g., "Detected JPEG image") and the final dimensions after processing. If a file is rejected, the service logs the source URL and the unknown magic bytes in hexadecimal format to aid in security monitoring.
+The validation logic is encapsulated in the `BinarySignatureValidator` domain service and utilized by the `ArtistImageService`. When a valid image is detected, the service logs the specific format identified (e.g., "Detected JPEG image") and the final dimensions after processing. If a file is rejected, the service logs the source URL and the unknown magic bytes in hexadecimal format to aid in security monitoring.
 
 ## 🖼️ User Feedback & UI Handling
 

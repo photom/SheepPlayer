@@ -1,5 +1,32 @@
 # Documentation Changelog
 
+## [2.1] - 2026-02-23
+
+### Major Updates
+
+-   **Security Refactoring**: 
+    -   Introduced `PathValidator` domain service to centralize file security.
+    -   Introduced `BinarySignatureValidator` for magic number verification.
+    -   Added strict invariants to the `Track` entity.
+-   **Global Sync Indicator**: 
+    -   Unified loading status across all fragments.
+    -   Implemented persistent "Syncing..." chip in `MainActivity`.
+    -   Refactored `MetadataLoadingService` to emit `Started` events for immediate feedback.
+-   **Stability & Playback Fixes**:
+    -   Resolved "MediaPlayer not ready" errors by introducing an `isPreparing` state in `MusicPlayerManager`.
+    -   Fixed critical path validation bug that blocked playback of cached Google Drive tracks.
+    -   Updated Google Drive library to `v3-rev20251210-2.0.0` for 2026 compatibility.
+
+### Added Documentation
+
+-   **Google Drive Security Guide**: Added SHA-1 fingerprints and App Ownership verification steps (anti-impersonation).
+-   **New Test Suite**: Added 7+ unit test files covering domain, security, and use case logic.
+
+### New Features Documented
+
+-   Global "running icon" for whole play list updates.
+-   Improved Google Drive authentication error reporting with actionable advice.
+
 ## [2.0] - 2025-01-13
 
 ### Major Updates

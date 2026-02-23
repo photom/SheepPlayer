@@ -63,11 +63,12 @@ The **Infrastructure** layer contains the real-world implementations of domain r
 
 ## 🛡️ Security by Design
 
-Security is a first-class citizen in our architecture:
+Security is a first-class citizen in our architecture, enforced through specialized **Domain Services**:
 
-1.  **Sanitization at the Gateway**: The Data layer sanitizes all incoming metadata from `MediaStore` before it is mapped into a `Track` entity.
-2.  **Signature Validation**: The Infrastructure layer performs binary signature checks (Magic Numbers) on all downloaded artist imagery.
-3.  **Safe Instantiation**: Domain Entities and Value Objects validate their state upon creation, ensuring the application never operates on "dirty" data.
+1.  **Path Sanitization (`PathValidator`)**: A domain service that enforces strict rules on file access. It prevents **Path Traversal** attacks (e.g., `../`), validates allowed directory prefixes (Internal Cache, MediaStore), and enforces a whitelist of supported audio extensions.
+2.  **Signature Validation (`BinarySignatureValidator`)**: Performs deep inspection of downloaded artist imagery using **Magic Numbers**. It ensures that a `.jpg` file is actually a JPEG and not a disguised script or HTML payload, protecting the UI layer from rendering malicious content.
+3.  **Entity Invariants**: Domain Entities like `Track` validate their business rules during construction (e.g., ensuring duration is non-negative and title is not blank), preventing "dirty" data from propagating through the system.
+4.  **Manual DI Isolation**: By using a manual DI container (`AppContainer`), we ensure that security services are consistently injected into all consumers (like `MusicPlayer` and `ArtistImageService`), leaving no room for unvalidated "backdoors."
 
 ## 💉 Dependency Injection (Manual Container)
 

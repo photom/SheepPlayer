@@ -98,4 +98,8 @@ class MusicDataHandler(
             }
         }
     }
+
+    fun showLoadingIndicator(show: Boolean) {
+        fragmentNotifier.notifyDataLoaded(showLoading = show)
+    }
 }
