@@ -2,21 +2,30 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+/**
+ * Reads a release-signing value from a Gradle property (e.g. in the user's
+ * `~/.gradle/gradle.properties`) or, failing that, an environment variable.
+ * Signing credentials are never stored in the repository.
+ */
+fun releaseSigningValue(property: String, environmentVariable: String): String? =
+    providers.gradleProperty(property)
+        .orElse(providers.environmentVariable(environmentVariable))
+        .orNull
+
+val releaseStoreFile = releaseSigningValue("sheepplayer.release.storeFile", "SHEEPPLAYER_RELEASE_STORE_FILE")
+
 android {
     signingConfigs {
-        create("release") {
-            // Security: Use proper release signing configuration
-            // TODO: Replace with production keystore for release builds
-            // storeFile = file("path/to/release.keystore")
-            // keyAlias = "release_key"
-            // keyPassword = System.getenv("KEYSTORE_PASSWORD")
-            // storePassword = System.getenv("STORE_PASSWORD")
-
-            // WARNING: Debug keystore should only be used for development
-            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-            keyAlias = "AndroidDebugKey"
-            keyPassword = "android"
-            storePassword = "android"
+        // Release builds are signed only when a production keystore is provided.
+        // Otherwise the release APK is left unsigned rather than signed with the
+        // debug key, so CI and local `./gradlew build` work without secrets.
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = releaseSigningValue("sheepplayer.release.storePassword", "SHEEPPLAYER_RELEASE_STORE_PASSWORD")
+                keyAlias = releaseSigningValue("sheepplayer.release.keyAlias", "SHEEPPLAYER_RELEASE_KEY_ALIAS")
+                keyPassword = releaseSigningValue("sheepplayer.release.keyPassword", "SHEEPPLAYER_RELEASE_KEY_PASSWORD")
+            }
         }
     }
     namespace = "com.hitsuji.sheepplayer2"
@@ -41,7 +50,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
         }
         debug {
             isDebuggable = true
