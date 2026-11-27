@@ -4,6 +4,7 @@ import com.hitsuji.sheepplayer2.Track
 import com.hitsuji.sheepplayer2.interfaces.GoogleDriveServiceInterface
 import com.hitsuji.sheepplayer2.interfaces.PlaybackManagerInterface
 import com.hitsuji.sheepplayer2.service.GoogleDriveResult
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -12,14 +13,16 @@ import java.io.FileOutputStream
 class PlayTrackUseCase(
     private val musicPlayerManager: PlaybackManagerInterface,
     private val googleDriveService: GoogleDriveServiceInterface,
-    private val cacheDir: File
+    private val cacheDir: File,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) {
     suspend operator fun invoke(track: Track) {
         if (track.filePath.startsWith("gdrive://")) {
             val fileId = track.filePath.removePrefix("gdrive://")
             val cacheFile = File(cacheDir, "gdrive_${fileId}.mp3")
             
-            val localPath = withContext(Dispatchers.IO) {
+            val localPath = withContext(ioDispatcher) {
                 if (cacheFile.exists() && cacheFile.length() > 0) {
                      return@withContext cacheFile.absolutePath
                 }
@@ -42,12 +45,12 @@ class PlayTrackUseCase(
             }
             
             if (localPath != null) {
-                withContext(Dispatchers.Main) {
+                withContext(mainDispatcher) {
                     musicPlayerManager.playTrack(track.copy(filePath = localPath))
                 }
             }
         } else {
-             withContext(Dispatchers.Main) {
+             withContext(mainDispatcher) {
                 musicPlayerManager.playTrack(track)
              }
         }
