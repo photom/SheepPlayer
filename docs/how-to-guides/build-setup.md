@@ -106,7 +106,10 @@ Release signing credentials are read from Gradle properties or environment varia
 | `sheepplayer.release.keyAlias` | `SHEEPPLAYER_RELEASE_KEY_ALIAS` | Key alias |
 | `sheepplayer.release.keyPassword` | `SHEEPPLAYER_RELEASE_KEY_PASSWORD` | Key password |
 
-Put the Gradle properties in the `gradle.properties` file of your Gradle user home, not in the project's `gradle.properties`. When `sheepplayer.release.storeFile` is not set, `./gradlew build` still succeeds and produces an unsigned release APK, which is what CI does.
+Put the Gradle properties in the `gradle.properties` file of your Gradle user home, not in the project's `gradle.properties`. A relative keystore path is resolved against the project root. Blank values count as unset.
+
+-   **None set**: `./gradlew build` still succeeds and produces an unsigned release APK, which is what CI does. An unsigned APK cannot be installed on a device, so `installRelease` requires signing.
+-   **Some set**: the build fails immediately and names the missing properties.
 
 ## 🚢 Deployment
 For production deployment, configure [Release Signing](#-release-signing) and run `./gradlew assembleRelease` or `./gradlew bundleRelease`, or generate a signed APK or Android App Bundle via the "Generate Signed Bundle/APK" wizard in Android Studio.

@@ -4,13 +4,14 @@
 Job logs are not always reachable (expired retention, restricted networks),
 but annotations are always visible on the run summary and through the
 check-runs API. This script turns the most useful parts of a failed Gradle
-run into annotations:
+run into annotations, in this order:
 
-* Kotlin compiler errors (``e: file:///path/File.kt:LINE:COL message``)
-  become file/line annotations.
+* The ``* What went wrong:`` section of the Gradle log (which task failed).
+* Compiler errors from Kotlin (``e: file:///path/File.kt:LINE:COL msg``),
+  KSP (``e: [ksp] /path/File.kt:LINE: msg``) and javac
+  (``/path/File.java:LINE: error: msg``), as file/line annotations.
 * Failed JUnit test cases from ``**/build/test-results/**/*.xml`` under the
   current directory.
-* The ``* What went wrong:`` section of the Gradle log.
 
 Usage: report_gradle_failures.py <gradle-log> [<gradle-log>...]
 Missing log files are skipped.
@@ -23,12 +24,19 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from urllib.parse import unquote
 
 MAX_ANNOTATIONS = 10
 MAX_MESSAGE_CHARS = 4000
 LOG_TAIL_LINES = 60
 
-KOTLIN_ERROR = re.compile(r"^e: (?:file://)?(?P<path>[^:]+\.kts?):(?P<line>\d+):(?P<col>\d+) (?P<msg>.*)$")
+COMPILE_ERROR_PATTERNS = [
+    ("Kotlin compile error", re.compile(r"^e: (?:file://)?(?P<path>[^:]+\.kts?):(?P<line>\d+):\d+ (?P<msg>.*)$")),
+    ("KSP error", re.compile(r"^e: \[ksp\] (?P<path>[^:]+):(?P<line>\d+): (?P<msg>.*)$")),
+    ("Java compile error", re.compile(r"^(?P<path>[^:\s]+\.java):(?P<line>\d+): error: (?P<msg>.*)$")),
+]
+
+CompileError = tuple[str, str, "str | None", "str | None"]
 
 
 def escape_data(value: str) -> str:
@@ -48,22 +56,28 @@ def format_annotation(message: str, title: str, file: str | None = None, line: s
     return f"::error {','.join(props)}::{escape_data(message[:MAX_MESSAGE_CHARS])}"
 
 
-def relative_to(path: str, workspace: str) -> str:
+def relative_to(path: str, workspace: str) -> str | None:
+    """Return ``path`` relative to ``workspace``, or None if it lies outside it."""
     try:
         return str(Path(path).resolve().relative_to(Path(workspace).resolve()))
     except ValueError:
-        return path
+        return None
 
 
-def kotlin_errors(log_lines: list[str], workspace: str) -> list[tuple[str, str, str, str]]:
-    found: list[tuple[str, str, str, str]] = []
+def compile_errors(log_lines: list[str], workspace: str) -> list[CompileError]:
+    found: list[CompileError] = []
     for raw in log_lines:
-        match = KOTLIN_ERROR.match(raw.strip())
-        if not match:
-            continue
-        error = ("Kotlin compile error", match["msg"], relative_to(match["path"], workspace), match["line"])
-        if error not in found:
-            found.append(error)
+        for title, pattern in COMPILE_ERROR_PATTERNS:
+            match = pattern.match(raw.strip())
+            if not match:
+                continue
+            path, line, msg = unquote(match["path"]), match["line"], match["msg"]
+            file = relative_to(path, workspace)
+            # GitHub cannot link files outside the repository; keep the path in the message instead.
+            error = (title, msg, file, line) if file else (title, f"{path}:{line}: {msg}", None, None)
+            if error not in found:
+                found.append(error)
+            break
     return found
 
 
@@ -84,6 +98,7 @@ def what_went_wrong(log_lines: list[str]) -> list[str]:
 
 
 def failed_tests(root: Path) -> list[tuple[str, str]]:
+    """Failed test cases; a failure reported by several variants is listed once."""
     results: list[tuple[str, str]] = []
     for report in sorted(root.glob("**/build/test-results/**/*.xml")):
         try:
@@ -94,7 +109,8 @@ def failed_tests(root: Path) -> list[tuple[str, str]]:
             for problem in [*case.findall("failure"), *case.findall("error")]:
                 name = f"{case.get('classname', '?')}.{case.get('name', '?')}"
                 detail = f"{problem.get('message') or ''}\n{problem.text or ''}".strip()
-                results.append((name, detail))
+                if (name, detail) not in results:
+                    results.append((name, detail))
     return results
 
 
@@ -107,11 +123,12 @@ def read_logs(paths: list[str]) -> list[str]:
 
 
 def build_annotations(log_lines: list[str], root: Path, workspace: str) -> list[str]:
-    annotations = [format_annotation(msg, title, file, line) for title, msg, file, line in kotlin_errors(log_lines, workspace)]
+    annotations = [format_annotation(section, "Gradle: what went wrong") for section in what_went_wrong(log_lines)]
+    annotations += [format_annotation(msg, title, file, line) for title, msg, file, line in compile_errors(log_lines, workspace)]
     annotations += [format_annotation(detail, f"Test failed: {name}") for name, detail in failed_tests(root)]
-    annotations += [format_annotation(section, "Gradle: what went wrong") for section in what_went_wrong(log_lines)]
     if not annotations and log_lines:
-        annotations.append(format_annotation("\n".join(log_lines[-LOG_TAIL_LINES:]), "Gradle log tail"))
+        tail = "\n".join(log_lines[-LOG_TAIL_LINES:])
+        annotations.append(format_annotation(tail[-MAX_MESSAGE_CHARS:], "Gradle log tail"))
     return annotations[:MAX_ANNOTATIONS]
 
 

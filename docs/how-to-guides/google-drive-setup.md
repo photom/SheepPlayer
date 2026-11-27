@@ -142,7 +142,7 @@ To fix this and verify ownership:
 Run the following procedures if you need to generate it again:
 
 -   **For Debug Builds**: Use the `keytool` utility to list the contents of your local `debug.keystore`, typically found in the `.android` directory of your user home. The default alias is `androiddebugkey` and the default password is `android`.
--   **For Release Builds**: If you have a production keystore, use the `keytool` utility with your specific keystore path and alias to retrieve the SHA-1 fingerprint.
+-   **For Release Builds**: Release builds are signed only with a production keystore configured as described in [Release Signing](build-setup.md#-release-signing); they are never signed with the debug key, and an unsigned release APK cannot be installed. Use the `keytool` utility with your production keystore path and alias to retrieve its SHA-1 fingerprint, and register it alongside the debug fingerprint.
 
 ### 3. Configure Firebase (Recommended)
 
