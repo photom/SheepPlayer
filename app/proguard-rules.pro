@@ -14,6 +14,12 @@
 -keep class com.google.android.gms.** { *; }
 -dontwarn com.google.android.gms.**
 
+# Apache HttpClient (pulled in by google-http-client) references JNDI and
+# Kerberos/GSS-API classes that do not exist on Android. Those code paths
+# (LDAP hostname parsing, Kerberos auth) are never used on Android.
+-dontwarn javax.naming.**
+-dontwarn org.ietf.jgss.**
+
 # Keep data classes used in serialization
 -keep class com.hitsuji.sheepplayer2.Artist { *; }
 -keep class com.hitsuji.sheepplayer2.Album { *; }
