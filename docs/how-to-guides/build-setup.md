@@ -6,8 +6,8 @@ This guide provides step-by-step instructions for setting up, building, and runn
 
 ### Required Software
 
-- **Android Studio**: Arctic Fox (2020.3.1) or later
-- **JDK**: Java 25 or higher
+- **Android Studio**: Otter 3 Feature Drop (2025.2.3) or later
+- **JDK**: Java 17 or higher to run Gradle. The build compiles with JDK 25 and downloads it if it is not installed.
 - **Android SDK**: API level 33 (Android 13) or higher
 - **Kotlin**: 2.3.10 (pinned in the version catalog)
 
