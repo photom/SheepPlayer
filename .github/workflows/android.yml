@@ -23,4 +23,7 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew build 2>&1 | tee gradle-build.log
+    - name: Report Gradle failures
+      if: failure()
+      run: python3 .github/scripts/report_gradle_failures.py gradle-build.log .
