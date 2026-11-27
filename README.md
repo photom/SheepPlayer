@@ -67,7 +67,7 @@ Documentation is organized following [Diátaxis](https://diataxis.fr/) principle
 **Development:**
 
 - Android Studio Arctic Fox (2020.3.1)+
-- JDK 11+
+- JDK 25+
 - Android SDK API 33+
 
 **Runtime:**

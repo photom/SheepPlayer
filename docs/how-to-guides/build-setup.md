@@ -7,9 +7,9 @@ This guide provides step-by-step instructions for setting up, building, and runn
 ### Required Software
 
 - **Android Studio**: Arctic Fox (2020.3.1) or later
-- **JDK**: Java 11 or higher
+- **JDK**: Java 25 or higher
 - **Android SDK**: API level 33 (Android 13) or higher
-- **Kotlin**: 2.0.21 or compatible version
+- **Kotlin**: 2.3.10 (pinned in the version catalog)
 
 ### System Requirements
 
@@ -65,8 +65,8 @@ The application's core build parameters are managed within the Gradle configurat
 | **Application ID** | com.hitsuji.sheepplayer |
 | **Minimum SDK** | 33 |
 | **Target/Compile SDK** | 36 |
-| **Java Compatibility** | Version 11 |
-| **Kotlin JVM Target** | 11 |
+| **Java Compatibility** | Version 25 |
+| **Kotlin JVM Target** | 25 |
 
 ### Dependencies
 Key libraries include Core KTX, AppCompat, Material Components, Navigation, and Lifecycle components, with versions managed in the centralized library catalog.
