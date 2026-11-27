@@ -33,8 +33,7 @@ class BinarySignatureValidatorTest {
         assertFalse(validator.isImage(html))
 
         // Shell script renamed to .png
-        val shell = "#!/bin/bash
-rm -rf /".toByteArray()
+        val shell = "#!/bin/bash\nrm -rf /".toByteArray()
         assertFalse(validator.isImage(shell))
     }
 

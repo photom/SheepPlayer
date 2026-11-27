@@ -2,21 +2,65 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+/** Production release-signing credentials (see docs/how-to-guides/build-setup.md). */
+data class ReleaseSigning(
+    val storeFile: String,
+    val storePassword: String,
+    val keyAlias: String,
+    val keyPassword: String,
+)
+
+/**
+ * Reads a release-signing value from a Gradle property (e.g. in the user's
+ * `~/.gradle/gradle.properties`) or, failing that, an environment variable.
+ * Blank values count as unset. Signing credentials are never stored in the repository.
+ */
+fun releaseSigningValue(name: String, environmentVariable: String): String? =
+    providers.gradleProperty("sheepplayer.release.$name")
+        .orElse(providers.environmentVariable(environmentVariable))
+        .orNull
+        ?.takeIf { it.isNotBlank() }
+
+/**
+ * Returns the release-signing credentials, or null when none are configured.
+ * Fails fast when only some of them are set, naming the missing properties.
+ */
+fun releaseSigning(): ReleaseSigning? {
+    val values = linkedMapOf(
+        "storeFile" to releaseSigningValue("storeFile", "SHEEPPLAYER_RELEASE_STORE_FILE"),
+        "storePassword" to releaseSigningValue("storePassword", "SHEEPPLAYER_RELEASE_STORE_PASSWORD"),
+        "keyAlias" to releaseSigningValue("keyAlias", "SHEEPPLAYER_RELEASE_KEY_ALIAS"),
+        "keyPassword" to releaseSigningValue("keyPassword", "SHEEPPLAYER_RELEASE_KEY_PASSWORD"),
+    )
+    if (values.values.all { it == null }) return null
+    val missing = values.filterValues { it == null }.keys
+    if (missing.isNotEmpty()) {
+        throw GradleException(
+            "Release signing is partially configured. Missing: " +
+                missing.joinToString { "sheepplayer.release.$it" } + ". Set all four values or none."
+        )
+    }
+    return ReleaseSigning(
+        storeFile = values.getValue("storeFile")!!,
+        storePassword = values.getValue("storePassword")!!,
+        keyAlias = values.getValue("keyAlias")!!,
+        keyPassword = values.getValue("keyPassword")!!,
+    )
+}
+
 android {
     signingConfigs {
-        create("release") {
-            // Security: Use proper release signing configuration
-            // TODO: Replace with production keystore for release builds
-            // storeFile = file("path/to/release.keystore")
-            // keyAlias = "release_key"
-            // keyPassword = System.getenv("KEYSTORE_PASSWORD")
-            // storePassword = System.getenv("STORE_PASSWORD")
-
-            // WARNING: Debug keystore should only be used for development
-            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-            keyAlias = "AndroidDebugKey"
-            keyPassword = "android"
-            storePassword = "android"
+        // Release builds are signed only when a production keystore is provided.
+        // Otherwise the release APK is left unsigned rather than signed with the
+        // debug key, so CI and local `./gradlew build` work without secrets.
+        releaseSigning()?.let { signing ->
+            create("release") {
+                // Relative paths are resolved against the project root.
+                storeFile = rootProject.file(signing.storeFile)
+                storePassword = signing.storePassword
+                keyAlias = signing.keyAlias
+                keyPassword = signing.keyPassword
+            }
         }
     }
     namespace = "com.hitsuji.sheepplayer2"
@@ -41,7 +85,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
         }
         debug {
             isDebuggable = true

@@ -6,21 +6,32 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# `shell: bash` runs steps with `-eo pipefail`, so `gradlew ... | tee` fails
+# when Gradle fails (the implicit default shell has no pipefail).
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: set up JDK 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v6
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
 
+    - name: Test CI scripts
+      run: python3 -m unittest discover -s .github/scripts
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew build --continue 2>&1 | tee gradle-build.log
+    - name: Report Gradle failures
+      if: failure()
+      run: python3 .github/scripts/report_gradle_failures.py gradle-build.log

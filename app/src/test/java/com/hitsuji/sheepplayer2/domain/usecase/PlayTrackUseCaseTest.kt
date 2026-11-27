@@ -3,6 +3,7 @@ package com.hitsuji.sheepplayer2.domain.usecase
 import com.hitsuji.sheepplayer2.Track
 import com.hitsuji.sheepplayer2.fakes.FakeGoogleDriveService
 import com.hitsuji.sheepplayer2.fakes.FakePlaybackManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,7 +28,14 @@ class PlayTrackUseCaseTest {
         fakePlaybackManager = FakePlaybackManager()
         fakeGoogleDriveService = FakeGoogleDriveService()
         cacheDir = tempFolder.newFolder("cache")
-        useCase = PlayTrackUseCase(fakePlaybackManager, fakeGoogleDriveService, cacheDir)
+        // The JVM has no Main dispatcher, so run the use case's context switches in place.
+        useCase = PlayTrackUseCase(
+            fakePlaybackManager,
+            fakeGoogleDriveService,
+            cacheDir,
+            ioDispatcher = Dispatchers.Unconfined,
+            mainDispatcher = Dispatchers.Unconfined
+        )
     }
 
     @Test

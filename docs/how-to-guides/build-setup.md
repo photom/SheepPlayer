@@ -74,7 +74,7 @@ Key libraries include Core KTX, AppCompat, Material Components, Navigation, and 
 ## 🧪 Build Variants
 
 -   **Debug**: Intended for development and testing; includes full logging and is signed with an automatically generated debug key.
--   **Release**: Optimized for production; excludes debug logs and requires a secure production keystore for signing.
+-   **Release**: Optimized for production; excludes debug logs. It is signed only when a production keystore is configured (see [Release Signing](#-release-signing)); otherwise the release APK is built unsigned. It is never signed with the debug key.
 
 ## 📱 Permissions Setup
 SheepPlayer automatically requests necessary permissions at runtime, including media access for audio files and wake locks for continuous background playback.
@@ -96,8 +96,23 @@ SheepPlayer automatically requests necessary permissions at runtime, including m
 ### Performance Optimization
 To speed up builds, enable parallel execution and build caching in the project's Gradle properties. Additionally, ensure the JVM is allocated sufficient memory (at least 4GB) for the build process.
 
+## 🔐 Release Signing
+Release signing credentials are read from Gradle properties or environment variables and are never committed to the repository. Set all four values to sign release builds:
+
+| Gradle property | Environment variable | Meaning |
+| :--- | :--- | :--- |
+| `sheepplayer.release.storeFile` | `SHEEPPLAYER_RELEASE_STORE_FILE` | Path to the production keystore |
+| `sheepplayer.release.storePassword` | `SHEEPPLAYER_RELEASE_STORE_PASSWORD` | Keystore password |
+| `sheepplayer.release.keyAlias` | `SHEEPPLAYER_RELEASE_KEY_ALIAS` | Key alias |
+| `sheepplayer.release.keyPassword` | `SHEEPPLAYER_RELEASE_KEY_PASSWORD` | Key password |
+
+Put the Gradle properties in the `gradle.properties` file of your Gradle user home, not in the project's `gradle.properties`. A relative keystore path is resolved against the project root. Blank values count as unset.
+
+-   **None set**: `./gradlew build` still succeeds and produces an unsigned release APK, which is what CI does. An unsigned APK cannot be installed on a device, so `installRelease` requires signing.
+-   **Some set**: the build fails immediately and names the missing properties.
+
 ## 🚢 Deployment
-For production deployment, generate a signed APK or Android App Bundle via the "Generate Signed Bundle/APK" wizard in Android Studio, following the prompts to configure your production keystore.
+For production deployment, configure [Release Signing](#-release-signing) and run `./gradlew assembleRelease` or `./gradlew bundleRelease`, or generate a signed APK or Android App Bundle via the "Generate Signed Bundle/APK" wizard in Android Studio.
 
 ## 📚 Additional Resources
 Consult the official Android Studio, Gradle, Kotlin, and Android developer documentation for more detailed information on advanced build configurations and deployment strategies.
