@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# The job only reads the repository, so limit the GITHUB_TOKEN to read access.
+permissions:
+  contents: read
+
 # `shell: bash` runs steps with `-eo pipefail`, so `gradlew ... | tee` fails
 # when Gradle fails (the implicit default shell has no pipefail).
 defaults:
