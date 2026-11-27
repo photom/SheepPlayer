@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# `shell: bash` runs steps with `-eo pipefail`, so `gradlew ... | tee` fails
+# when Gradle fails (the implicit default shell has no pipefail).
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
 
