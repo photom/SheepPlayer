@@ -93,8 +93,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
     }
     buildFeatures {
         viewBinding = true
@@ -119,8 +119,11 @@ android {
 }
 
 kotlin {
+    // Compile Java and Kotlin with JDK 25 whichever JDK runs Gradle. If no
+    // JDK 25 is installed, the foojay resolver in settings.gradle.kts downloads one.
+    jvmToolchain(25)
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
     }
 }
 

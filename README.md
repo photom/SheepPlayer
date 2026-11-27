@@ -66,8 +66,8 @@ Documentation is organized following [Diátaxis](https://diataxis.fr/) principle
 
 **Development:**
 
-- Android Studio Arctic Fox (2020.3.1)+
-- JDK 11+
+- Android Studio Otter 3 Feature Drop (2025.2.3)+
+- JDK 17+ to run Gradle (the build compiles with JDK 25 and downloads it if needed)
 - Android SDK API 33+
 
 **Runtime:**
